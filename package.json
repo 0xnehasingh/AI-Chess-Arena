@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",
+    "@supabase/supabase-js": "^2.50.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
