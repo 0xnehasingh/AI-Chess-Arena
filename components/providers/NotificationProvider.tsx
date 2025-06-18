@@ -3,9 +3,19 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 
+interface Notification {
+  id: string
+  type: string
+  title: string
+  message: string
+  timestamp: Date
+  read: boolean
+  amount?: number
+}
+
 interface NotificationContextType {
-  notifications: any[]
-  addNotification: (notification: any) => void
+  notifications: Notification[]
+  addNotification: (notification: Notification) => void
   markAsRead: (id: string) => void
   markAllAsRead: () => void
 }
@@ -21,9 +31,9 @@ export function useNotifications() {
 }
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const [notifications, setNotifications] = useState([])
+  const [notifications, setNotifications] = useState<Notification[]>([])
 
-  const addNotification = (notification: any) => {
+  const addNotification = (notification: Notification) => {
     setNotifications(prev => [notification, ...prev])
     
     // Show toast notification
@@ -58,7 +68,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const interval = setInterval(() => {
       // In a real app, this would come from WebSocket or Server-Sent Events
-      const randomNotifications = [
+      const randomNotifications: Notification[] = [
         {
           id: Date.now().toString(),
           type: 'match_started',
