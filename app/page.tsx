@@ -1,4 +1,4 @@
-import { LiveMatch } from '@/components/live-match/LiveMatch'
+import { LiveMatchContainer } from '@/components/live-match/LiveMatchContainer'
 import { BettingInterface } from '@/components/betting/BettingInterface'
 
 export default function HomePage() {
@@ -13,8 +13,8 @@ export default function HomePage() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* AI Champions Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
+        {/* Left Sidebar - AI Champions and Timer */}
         <div className="xl:col-span-1">
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6">
             <h2 className="text-xl font-bold text-white mb-4">AI Champions</h2>
@@ -54,7 +54,7 @@ export default function HomePage() {
           </div>
 
           {/* Match Timer */}
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6">
             <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
               <span>⏱️</span>
               Match Timer
@@ -73,16 +73,14 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Chess Board */}
-        <div className="xl:col-span-1">
-          <LiveMatch />
-        </div>
-
-        {/* Betting Interface */}
-        <div className="xl:col-span-1">
+          {/* Betting Interface */}
           <BettingInterface />
+        </div>
+
+        {/* Center and Right - Chess Game with Commentary and History */}
+        <div className="xl:col-span-3">
+          <LiveMatchContainer />
         </div>
       </div>
     </div>
