@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import { Chess } from 'chess.js'
 import { ChessBoard } from './ChessBoard'
 
 export interface ChessMove {
@@ -11,70 +12,230 @@ export interface ChessMove {
   notation: string
   timestamp: Date
   evaluation?: number
+  from: string
+  to: string
+  fen: string
+  isCheck?: boolean
+  isCheckmate?: boolean
+  isStalemate?: boolean
+  isDraw?: boolean
 }
 
-const mockMoves: ChessMove[] = [
-  {
-    id: '1',
-    player: 'Claude',
-    move: 'e2-e4',
-    notation: 'e4',
-    timestamp: new Date(Date.now() - 180000),
-    evaluation: 0.2
-  },
-  {
-    id: '2',
-    player: 'ChatGPT',
-    move: 'e7-e5',
-    notation: 'e5',
-    timestamp: new Date(Date.now() - 150000),
-    evaluation: 0.1
-  },
-  {
-    id: '3',
-    player: 'Claude',
-    move: 'g1-f3',
-    notation: 'Nf3',
-    timestamp: new Date(Date.now() - 120000),
-    evaluation: 0.3
-  },
-  {
-    id: '4',
-    player: 'ChatGPT',
-    move: 'b8-c6',
-    notation: 'Nc6',
-    timestamp: new Date(Date.now() - 90000),
-    evaluation: 0.2
-  }
-]
+interface GameState {
+  status: 'playing' | 'checkmate' | 'stalemate' | 'draw' | 'waiting'
+  winner?: 'ChatGPT' | 'Claude' | 'draw'
+  reason?: string
+}
 
 export function LiveMatch() {
-  const [moves, setMoves] = useState<ChessMove[]>(mockMoves)
+  const [chess] = useState(() => new Chess())
+  const [moves, setMoves] = useState<ChessMove[]>([])
   const [currentPlayer, setCurrentPlayer] = useState<'ChatGPT' | 'Claude'>('Claude')
   const [lastMove, setLastMove] = useState<ChessMove | null>(null)
+  const [gameState, setGameState] = useState<GameState>({ status: 'playing' })
+  const [boardPosition, setBoardPosition] = useState(chess.board())
+  const [isThinking, setIsThinking] = useState(false)
 
-  // Simulate live game updates
+  // Check game status and update state
+  const checkGameStatus = useCallback(() => {
+    if (chess.isCheckmate()) {
+      const winner = chess.turn() === 'w' ? 'ChatGPT' : 'Claude'
+      setGameState({
+        status: 'checkmate',
+        winner: winner === 'ChatGPT' ? 'Claude' : 'ChatGPT', // Opposite since turn switched
+        reason: 'Checkmate'
+      })
+      return true
+    }
+
+    if (chess.isStalemate()) {
+      setGameState({
+        status: 'stalemate',
+        winner: 'draw',
+        reason: 'Stalemate'
+      })
+      return true
+    }
+
+    if (chess.isDraw()) {
+      let reason = 'Draw'
+      if (chess.isInsufficientMaterial()) {
+        reason = 'Insufficient material'
+      } else if (chess.isThreefoldRepetition()) {
+        reason = 'Threefold repetition'
+      }
+      
+      setGameState({
+        status: 'draw',
+        winner: 'draw',
+        reason
+      })
+      return true
+    }
+
+    return false
+  }, [chess])
+
+  // Generate AI move (simplified AI logic)
+  const generateAIMove = useCallback(() => {
+    if (gameState.status !== 'playing') return
+
+    setIsThinking(true)
+    
+    // Simulate thinking time
+    setTimeout(() => {
+      try {
+        const possibleMoves = chess.moves({ verbose: true })
+        
+        if (possibleMoves.length === 0) {
+          checkGameStatus()
+          setIsThinking(false)
+          return
+        }
+
+        // Simple AI: Random move with slight preference for captures and checks
+        let selectedMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
+        
+        // Prefer captures (simplified AI logic)
+        const captures = possibleMoves.filter(move => move.captured)
+        if (captures.length > 0 && Math.random() > 0.7) {
+          selectedMove = captures[Math.floor(Math.random() * captures.length)]
+        }
+
+        // Prefer checks
+        const checks = possibleMoves.filter(move => {
+          const tempChess = new Chess(chess.fen())
+          tempChess.move(move)
+          return tempChess.inCheck()
+        })
+        if (checks.length > 0 && Math.random() > 0.8) {
+          selectedMove = checks[Math.floor(Math.random() * checks.length)]
+        }
+
+        // Make the move
+        const moveResult = chess.move(selectedMove)
+        
+        if (moveResult) {
+          const newMove: ChessMove = {
+            id: Date.now().toString(),
+            player: currentPlayer,
+            move: `${moveResult.from}-${moveResult.to}`,
+            notation: moveResult.san,
+            timestamp: new Date(),
+            evaluation: Math.random() * 2 - 1, // Random evaluation for demo
+            from: moveResult.from,
+            to: moveResult.to,
+            fen: chess.fen(),
+            isCheck: chess.inCheck(),
+            isCheckmate: chess.isCheckmate(),
+            isStalemate: chess.isStalemate(),
+            isDraw: chess.isDraw()
+          }
+
+          setMoves(prev => [...prev, newMove])
+          setLastMove(newMove)
+          setBoardPosition(chess.board())
+          
+          // Check if game ended
+          if (!checkGameStatus()) {
+            // Switch players
+            setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
+          }
+        }
+      } catch (error) {
+        console.error('Error generating AI move:', error)
+      }
+      
+      setIsThinking(false)
+    }, 2000 + Math.random() * 3000) // 2-5 seconds thinking time
+  }, [chess, currentPlayer, gameState.status, checkGameStatus])
+
+  // Auto-play game
   useEffect(() => {
-    const interval = setInterval(() => {
-      // Simulate a new move every 15 seconds
-      if (Math.random() > 0.5) {
+    if (gameState.status === 'playing' && !isThinking) {
+      const timer = setTimeout(() => {
+        generateAIMove()
+      }, 1000) // 1 second delay between moves
+
+      return () => clearTimeout(timer)
+    }
+  }, [generateAIMove, gameState.status, isThinking, moves.length])
+
+  // Manual move function (for testing or manual play)
+  const makeMove = useCallback((from: string, to: string, promotion?: string) => {
+    try {
+      const moveOptions: any = { from, to }
+      if (promotion) moveOptions.promotion = promotion
+
+      const moveResult = chess.move(moveOptions)
+      
+      if (moveResult) {
         const newMove: ChessMove = {
-          id: (moves.length + 1).toString(),
+          id: Date.now().toString(),
           player: currentPlayer,
-          move: 'a1-a2', // This would be a real chess move
-          notation: currentPlayer === 'Claude' ? 'Bb5' : 'a6',
+          move: `${moveResult.from}-${moveResult.to}`,
+          notation: moveResult.san,
           timestamp: new Date(),
-          evaluation: Math.random() * 2 - 1 // Random evaluation between -1 and 1
+          from: moveResult.from,
+          to: moveResult.to,
+          fen: chess.fen(),
+          isCheck: chess.inCheck(),
+          isCheckmate: chess.isCheckmate(),
+          isStalemate: chess.isStalemate(),
+          isDraw: chess.isDraw()
         }
 
         setMoves(prev => [...prev, newMove])
         setLastMove(newMove)
-        setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
-      }
-    }, 15000)
+        setBoardPosition(chess.board())
+        
+        if (!checkGameStatus()) {
+          setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
+        }
 
-    return () => clearInterval(interval)
-  }, [moves.length, currentPlayer])
+        return true
+      }
+      return false
+    } catch (error) {
+      console.error('Invalid move:', error)
+      return false
+    }
+  }, [chess, currentPlayer, checkGameStatus])
+
+  // Reset game function
+  const resetGame = useCallback(() => {
+    chess.reset()
+    setMoves([])
+    setLastMove(null)
+    setCurrentPlayer('Claude')
+    setGameState({ status: 'playing' })
+    setBoardPosition(chess.board())
+    setIsThinking(false)
+  }, [chess])
+
+  // Get game status message
+  const getGameStatusMessage = () => {
+    if (gameState.status === 'playing') {
+      if (isThinking) {
+        return `${currentPlayer} is thinking...`
+      }
+      return `${currentPlayer} to move`
+    }
+    
+    if (gameState.status === 'checkmate') {
+      return `Checkmate! ${gameState.winner} wins!`
+    }
+    
+    if (gameState.status === 'stalemate') {
+      return `Game ends in stalemate`
+    }
+    
+    if (gameState.status === 'draw') {
+      return `Game ends in a draw - ${gameState.reason}`
+    }
+    
+    return 'Game status unknown'
+  }
 
   return (
     <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
@@ -82,15 +243,41 @@ export function LiveMatch() {
         {/* Game Status */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
-            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-            <span className="text-white text-sm font-medium">Live Game</span>
+            <div className={`w-2 h-2 rounded-full ${
+              gameState.status === 'playing' ? 'bg-green-400 animate-pulse' : 
+              gameState.status === 'checkmate' ? 'bg-red-400' : 'bg-yellow-400'
+            }`}></div>
+            <span className="text-white text-sm font-medium">
+              {gameState.status === 'playing' ? 'Live Game' : 'Game Over'}
+            </span>
           </div>
+          
           <p className="text-purple-300 mt-2">
-            🟢 Claude plays aggressive Sicilian defense
+            {getGameStatusMessage()}
           </p>
-          <p className="text-purple-400 text-sm">
-            Last move: e4-e5 • Next move in 3.2s
-          </p>
+          
+          {chess.inCheck() && gameState.status === 'playing' && (
+            <p className="text-red-400 text-sm mt-1">
+              ⚠️ {currentPlayer} is in check!
+            </p>
+          )}
+          
+          <div className="flex items-center justify-center gap-4 mt-3 text-sm text-purple-400">
+            <span>Move: {Math.ceil(moves.length / 2)}</span>
+            <span>•</span>
+            <span>FEN: {chess.fen().split(' ')[0]}...</span>
+            {gameState.status !== 'playing' && (
+              <>
+                <span>•</span>
+                <button 
+                  onClick={resetGame}
+                  className="text-cyan-400 hover:text-cyan-300 underline"
+                >
+                  New Game
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Chess Board */}
@@ -98,6 +285,11 @@ export function LiveMatch() {
           moves={moves} 
           currentPlayer={currentPlayer}
           lastMove={lastMove}
+          boardPosition={boardPosition}
+          gameState={gameState}
+          chess={chess}
+          onMove={makeMove}
+          isThinking={isThinking}
         />
       </div>
     </div>
