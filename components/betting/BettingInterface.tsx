@@ -92,7 +92,7 @@ export function BettingInterface() {
                       <span className="text-white font-bold text-lg">🧠</span>
                       <span className="text-white font-semibold">Bet on ChatGPT</span>
                     </div>
-                    <div className="text-white font-bold text-xl">2.1x</div>
+                    {/* <div className="text-white font-bold text-xl">2.1x</div> */}
                   </div>
                 </motion.button>
 
@@ -111,7 +111,7 @@ export function BettingInterface() {
                       <span className="text-white font-bold text-lg">🧠</span>
                       <span className="text-white font-semibold">Bet on Claude</span>
                     </div>
-                    <div className="text-white font-bold text-xl">1.8x</div>
+                    {/* <div className="text-white font-bold text-xl">1.8x</div> */}
                   </div>
                 </motion.button>
               </div>
@@ -119,10 +119,10 @@ export function BettingInterface() {
 
             {/* Bet Amount */}
             <div className="mb-6">
-              <h3 className="text-white font-semibold mb-4">Enter Amount:</h3>
+              {/* <h3 className="text-white font-semibold mb-4">Enter Amount:</h3> */}
               
               {/* Amount Input */}
-              <div className="relative mb-4">
+              {/* <div className="relative mb-4">
                 <input
                   type="number"
                   value={betAmount}
@@ -133,10 +133,10 @@ export function BettingInterface() {
                   max="1000"
                 />
                 <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-green-400 text-xl font-bold">$</span>
-              </div>
+              </div> */}
 
               {/* Quick Amount Buttons */}
-              <div className="grid grid-cols-4 gap-3">
+              {/* <div className="grid grid-cols-4 gap-3">
                 {quickAmounts.map((amount) => (
                   <button
                     key={amount}
@@ -150,11 +150,11 @@ export function BettingInterface() {
                     ${amount}
                   </button>
                 ))}
-              </div>
+              </div> */}
             </div>
 
             {/* Live Odds */}
-            <div className="bg-white/5 rounded-xl p-4">
+            {/* <div className="bg-white/5 rounded-xl p-4">
               <h3 className="text-white font-semibold mb-4">Live Odds:</h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
@@ -166,7 +166,7 @@ export function BettingInterface() {
                   <span className="text-white font-bold text-xl">1.8x</span>
                 </div>
               </div>
-            </div>
+            </div> */}
           </>
         ) : (
           <div className="text-center py-8">

@@ -7,6 +7,7 @@ import { ChessBoard } from './ChessBoard'
 import { LiveCommentary } from './LiveCommentary'
 import { MoveHistory } from './MoveHistory'
 import { getAIMove } from '@/lib/agent'
+import { BettingPanel } from '../betting/BettingPanel'
 
 export interface ChessMove {
   id: string
@@ -175,7 +176,6 @@ export function LiveMatch() {
         const newMatchId = await createMatchOnBlockchain()
         setMatchId(newMatchId)
         console.log('✅ Match initialized with ID:', newMatchId)
-        alert(`✅ Match created on blockchain with ID: ${newMatchId}`)
       } catch (error) {
         console.error('❌ Failed to initialize match on blockchain:', error)
         console.log('🔄 Trying to create match via API as fallback...')
@@ -197,7 +197,6 @@ export function LiveMatch() {
             if (apiResult.success && apiResult.matchId) {
               setMatchId(parseInt(apiResult.matchId))
               console.log('✅ Fallback match created via API with ID:', apiResult.matchId)
-              alert(`✅ Match created via API fallback with ID: ${apiResult.matchId}`)
               return
             }
           }
@@ -208,7 +207,6 @@ export function LiveMatch() {
         // If both methods fail, disable blockchain recording
         setMatchId(null)
         console.log('❌ Both blockchain methods failed, playing without blockchain recording')
-        alert(`❌ Failed to create match on blockchain. Game will continue without blockchain recording.`)
       }
     }
 
@@ -295,21 +293,21 @@ export function LiveMatch() {
         
         // Create move record from the last move made
         const evaluation = Math.random() * 2 - 1 // Random evaluation for demo
-        const newMove: ChessMove = {
-          id: Date.now().toString(),
-          player: currentPlayer,
+          const newMove: ChessMove = {
+            id: Date.now().toString(),
+            player: currentPlayer,
           move: `${lastMove.from}-${lastMove.to}`,
           notation: lastMove.san,
-          timestamp: new Date(),
+            timestamp: new Date(),
           evaluation: evaluation,
           from: lastMove.from,
           to: lastMove.to,
-          fen: chess.fen(),
-          isCheck: chess.inCheck(),
-          isCheckmate: chess.isCheckmate(),
-          isStalemate: chess.isStalemate(),
-          isDraw: chess.isDraw()
-        }
+            fen: chess.fen(),
+            isCheck: chess.inCheck(),
+            isCheckmate: chess.isCheckmate(),
+            isStalemate: chess.isStalemate(),
+            isDraw: chess.isDraw()
+          }
 
         console.log(`📊 AI Move Details:`, {
           player: currentPlayer,
@@ -328,7 +326,6 @@ export function LiveMatch() {
               console.log(`✅ Move ${newMove.notation} recorded to blockchain successfully`)
             } catch (error) {
               console.error('❌ Failed to record move to blockchain:', error)
-              alert(`❌ Failed to record move ${newMove.notation}: ${error instanceof Error ? error.message : String(error)}`)
               // Continue with the game even if blockchain recording fails
             }
           } else {
@@ -340,10 +337,10 @@ export function LiveMatch() {
           setLastMove(newMove)
           setBoardPosition(chess.board())
           
-        // Check if game ended
-        if (!checkGameStatus()) {
-          // Switch players
-          setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
+          // Check if game ended
+          if (!checkGameStatus()) {
+            // Switch players
+            setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
         }
       } catch (error) {
         console.error('Error generating AI move:', error)
@@ -401,7 +398,6 @@ export function LiveMatch() {
             })
             .catch(error => {
               console.error('❌ Failed to record manual move to blockchain:', error)
-              alert(`❌ Failed to record manual move ${newMove.notation}: ${error instanceof Error ? error.message : String(error)}`)
               // Continue with the game even if blockchain recording fails
             })
         } else {
@@ -431,13 +427,12 @@ export function LiveMatch() {
       console.log('🔍 Blockchain diagnostics result:', result)
       
       if (result.success) {
-        alert('✅ Blockchain setup is working correctly!')
+        console.log('✅ Blockchain setup is working correctly!')
       } else {
-        alert(`❌ Blockchain issues found:\n${result.summary}\n\nCheck console for details.`)
+        console.log(`❌ Blockchain issues found: ${result.summary}`)
       }
     } catch (error) {
       console.error('❌ Failed to run blockchain diagnostics:', error)
-      alert(`❌ Failed to run diagnostics: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -454,13 +449,12 @@ export function LiveMatch() {
       console.log('🧪 Test move result:', result)
       
       if (result.success) {
-        alert(`✅ Test move recorded successfully!\nTx Hash: ${result.transactionHash}\nBlock: ${result.blockNumber}`)
+        console.log(`✅ Test move recorded successfully! Tx Hash: ${result.transactionHash}, Block: ${result.blockNumber}`)
       } else {
-        alert(`❌ Test move failed:\n${result.error}\n\nCheck console for details.`)
+        console.log(`❌ Test move failed: ${result.error}`)
       }
     } catch (error) {
       console.error('❌ Failed to test move recording:', error)
-      alert(`❌ Test move error: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
@@ -512,105 +506,207 @@ export function LiveMatch() {
   }
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      {/* Left Column - Chess Board */}
-      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
-        <div className="p-6">
-          {/* Game Status */}
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
-              <div className={`w-2 h-2 rounded-full ${
-                gameState.status === 'playing' ? 'bg-green-400 animate-pulse' : 
-                gameState.status === 'checkmate' ? 'bg-red-400' : 'bg-yellow-400'
-              }`}></div>
-              <span className="text-white text-sm font-medium">
-                {gameState.status === 'playing' ? 'Live Game' : 'Game Over'}
-              </span>
-              <span className="text-purple-300 text-xs">🧠 vs 🤖</span>
-            </div>
-            
-            <p className="text-purple-300 mt-2">
-              {getGameStatusMessage()}
-            </p>
-            
-            {chess.inCheck() && gameState.status === 'playing' && (
-              <p className="text-red-400 text-sm mt-1">
-                ⚠️ {currentPlayer} is in check!
-              </p>
-            )}
-            
-            <div className="flex items-center justify-center gap-4 mt-3 text-sm text-purple-400">
-              <span>Move: {Math.ceil(moves.length / 2)}</span>
-              <span>•</span>
-              <span>FEN: {chess.fen().split(' ')[0]}...</span>
-              {matchId && (
-                <>
-                  <span>•</span>
-                  <span className="text-green-400">Match ID: {matchId}</span>
-                </>
-              )}
-              {gameState.status !== 'playing' && (
-                <>
-                  <span>•</span>
-                  <button 
-                    onClick={resetGame}
-                    className="text-cyan-400 hover:text-cyan-300 underline"
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
+
+
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+          {/* Left Column - Chess Board */}
+          <motion.div 
+            className="bg-gradient-to-br from-white/5 to-white/10 backdrop-blur-xl rounded-3xl border border-white/20 overflow-hidden shadow-2xl"
+            initial={{ opacity: 0, x: -50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <div className="bg-gradient-to-r from-purple-600/10 to-cyan-600/10 p-2">
+              <div className="bg-white/5 rounded-2xl p-6">
+                {/* Enhanced Game Status */}
+                <div className="text-center mb-8">
+                  <motion.div 
+                    className="mb-6"
+                    animate={{ y: [0, -5, 0] }}
+                    transition={{ duration: 2, repeat: Infinity }}
                   >
-                    New Game
-                  </button>
-                </>
-              )}
-            </div>
-            
-            {/* Blockchain Debug Section */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-              <button 
-                onClick={testBlockchain}
-                className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
-              >
-                🔍 Test Setup
-              </button>
-              <button 
-                onClick={testMoveRecording}
-                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
-              >
-                🧪 Test Move
-              </button>
-              {!matchId && (
-                <span className="text-xs text-red-400">⚠️ No blockchain match</span>
-              )}
-              {matchId && (
-                <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
-              )}
-            </div>
+                    <h2 className="text-2xl font-bold text-white mb-3">Current Position</h2>
+                    <div className="text-lg text-purple-300 font-medium">
+                      {getGameStatusMessage()}
+                    </div>
+                  </motion.div>
+                  
+                  {/* Enhanced Player Turn Indicator */}
+                  <div className="flex items-center justify-center gap-6 mb-6">
+                    <motion.div 
+                      className={`flex items-center gap-3 px-4 py-2 rounded-xl border-2 transition-all ${
+                        currentPlayer === 'Claude' ? 'border-purple-400 bg-purple-400/20' : 'border-white/20 bg-white/5'
+                      }`}
+                      animate={currentPlayer === 'Claude' ? { scale: [1, 1.05, 1] } : {}}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    >
+                      <span className="text-2xl">🧠</span>
+                      <span className="text-white font-semibold">Claude</span>
+                      {currentPlayer === 'Claude' && isThinking && (
+                        <div className="flex space-x-1">
+                          <motion.div className="w-1 h-1 bg-purple-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0 }} />
+                          <motion.div className="w-1 h-1 bg-purple-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }} />
+                          <motion.div className="w-1 h-1 bg-purple-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }} />
+                        </div>
+                      )}
+                    </motion.div>
+                    
+                    <div className="text-white/50 text-xl font-bold">VS</div>
+                    
+                    <motion.div 
+                      className={`flex items-center gap-3 px-4 py-2 rounded-xl border-2 transition-all ${
+                        currentPlayer === 'ChatGPT' ? 'border-cyan-400 bg-cyan-400/20' : 'border-white/20 bg-white/5'
+                      }`}
+                      animate={currentPlayer === 'ChatGPT' ? { scale: [1, 1.05, 1] } : {}}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    >
+                      <span className="text-2xl">🤖</span>
+                      <span className="text-white font-semibold">ChatGPT</span>
+                      {currentPlayer === 'ChatGPT' && isThinking && (
+                        <div className="flex space-x-1">
+                          <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0 }} />
+                          <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.1 }} />
+                          <motion.div className="w-1 h-1 bg-cyan-400 rounded-full" animate={{ y: [-2, 2, -2] }} transition={{ duration: 0.5, repeat: Infinity, delay: 0.2 }} />
+                        </div>
+                      )}
+                    </motion.div>
           </div>
-
-          {/* Chess Board */}
-          <ChessBoard 
-            moves={moves} 
-            currentPlayer={currentPlayer}
-            lastMove={lastMove}
-            boardPosition={boardPosition}
-            gameState={gameState}
-            chess={chess}
-            onMove={makeMove}
-            isThinking={isThinking}
-          />
+          
+          {chess.inCheck() && gameState.status === 'playing' && (
+                    <motion.div 
+                      className="bg-red-500/20 border border-red-400/50 rounded-xl p-3 mb-4"
+                      animate={{ opacity: [0.7, 1, 0.7] }}
+                      transition={{ duration: 1, repeat: Infinity }}
+                    >
+                      <p className="text-red-400 font-bold flex items-center justify-center gap-2">
+              ⚠️ {currentPlayer} is in check!
+            </p>
+                    </motion.div>
+                  )}
+                  
+                  {/* Enhanced Game Stats */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                      <div className="text-purple-300 text-sm">Move</div>
+                      <div className="text-white text-xl font-bold">{Math.ceil(moves.length / 2)}</div>
+                    </div>
+                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
+                      <div className="text-purple-300 text-sm">Pieces</div>
+                      <div className="text-white text-xl font-bold">{chess.board().flat().filter(piece => piece !== null).length}</div>
+                    </div>
+                    {matchId && (
+                      <div className="bg-green-500/10 border border-green-400/30 rounded-xl p-3">
+                        <div className="text-green-300 text-sm">Match ID</div>
+                        <div className="text-green-400 text-xl font-bold">{matchId}</div>
+                      </div>
+                    )}
+            {gameState.status !== 'playing' && (
+                      <div className="col-span-1">
+                        <motion.button 
+                  onClick={resetGame}
+                          className="w-full bg-gradient-to-r from-cyan-500 to-purple-500 hover:from-cyan-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-xl transition-all"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                >
+                  New Game
+                        </motion.button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Enhanced Blockchain Debug Section */}
+                  <div className="flex flex-wrap items-center justify-center gap-3">
+                    <motion.button 
+                      onClick={testBlockchain}
+                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white rounded-xl transition-all text-sm font-medium border border-purple-500/50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      🔍 Test Setup
+                    </motion.button>
+                    <motion.button 
+                      onClick={testMoveRecording}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all text-sm font-medium border border-blue-500/50"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      🧪 Test Move
+                    </motion.button>
+                    {!matchId && (
+                      <div className="bg-red-500/10 border border-red-400/30 px-3 py-2 rounded-xl">
+                        <span className="text-red-400 text-xs font-medium">⚠️ No blockchain match</span>
+                      </div>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* Right Column - Commentary and History */}
-      <div className="space-y-6">
-        {/* Live Commentary */}
-        <LiveCommentary 
-          moves={moves}
+                {/* Chess Board Container */}
+                <motion.div 
+                  className="bg-gradient-to-br from-amber-50 to-amber-100 p-4 rounded-2xl shadow-2xl"
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.6, delay: 0.4 }}
+                >
+        <ChessBoard 
+          moves={moves} 
           currentPlayer={currentPlayer}
+          lastMove={lastMove}
+          boardPosition={boardPosition}
           gameState={gameState}
+          chess={chess}
+          onMove={makeMove}
           isThinking={isThinking}
         />
-        
-        {/* Move History */}
-        <MoveHistory moves={moves} />
+                </motion.div>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Column - Betting, Commentary and History */}
+          <motion.div 
+            className="space-y-6"
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
+                                              >
+            {/* Betting Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+            >
+              <BettingPanel 
+                isGameActive={gameState.status === 'playing'}
+                currentPlayer={currentPlayer}
+              />
+            </motion.div>
+            
+            {/* Live Commentary */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+            >
+              <LiveCommentary 
+                moves={moves}
+                currentPlayer={currentPlayer}
+                gameState={gameState}
+                isThinking={isThinking}
+              />
+            </motion.div>
+            
+            {/* Move History */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6 }}
+            >
+              <MoveHistory moves={moves} />
+            </motion.div>
+          </motion.div>
+        </div>
       </div>
     </div>
   )
