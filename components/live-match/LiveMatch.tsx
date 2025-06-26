@@ -35,6 +35,84 @@ export function LiveMatch() {
   const [gameState, setGameState] = useState<GameState>({ status: 'playing' })
   const [boardPosition, setBoardPosition] = useState(chess.board())
   const [isThinking, setIsThinking] = useState(false)
+  const [matchId, setMatchId] = useState<number | null>(null)
+
+  // Function to create a match on blockchain
+  const createMatchOnBlockchain = useCallback(async () => {
+    try {
+      console.log('🚀 Starting match creation on blockchain...')
+      console.log('🎯 Match details:', {
+        whitePlayer: 'Claude',
+        blackPlayer: 'ChatGPT',
+        initialFen: chess.fen()
+      })
+
+      const response = await fetch('/api/create-match', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          whitePlayer: 'Claude',  // Claude plays white
+          blackPlayer: 'ChatGPT', // ChatGPT plays black
+          initialFen: chess.fen()
+        }),
+      })
+
+      console.log('📡 Create match response status:', response.status)
+      const result = await response.json()
+      console.log('📡 Create match response data:', result)
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to create match')
+      }
+
+      console.log('✅ Match created on blockchain successfully:', result)
+      const matchId = parseInt(result.matchId)
+      console.log('🎯 Parsed match ID:', matchId)
+      return matchId
+    } catch (error) {
+      console.error('❌ Blockchain match creation error:', error)
+      throw error
+    }
+  }, [chess])
+
+  // Function to record move to blockchain
+  const recordMoveToBlockchain = async (move: ChessMove, matchId: number) => {
+    try {
+      const response = await fetch('/api/record-move', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          matchId,
+          player: move.player,
+          moveNotation: move.notation,
+          fromSquare: move.from,
+          toSquare: move.to,
+          fenPosition: move.fen,
+          evaluation: move.evaluation || 0,
+          isCheck: move.isCheck || false,
+          isCheckmate: move.isCheckmate || false,
+          isStalemate: move.isStalemate || false,
+          isDraw: move.isDraw || false,
+        }),
+      })
+
+      const result = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to record move')
+      }
+
+      console.log('Move recorded to blockchain:', result)
+      return result
+    } catch (error) {
+      console.error('Blockchain recording error:', error)
+      throw error
+    }
+  }
 
   // Check game status and update state
   const checkGameStatus = useCallback(() => {
@@ -76,14 +154,43 @@ export function LiveMatch() {
     return false
   }, [chess])
 
+  // Create match on blockchain when component mounts
+  useEffect(() => {
+    const initializeMatch = async () => {
+      try {
+        console.log('🚀 Attempting to create match on blockchain...')
+        const newMatchId = await createMatchOnBlockchain()
+        setMatchId(newMatchId)
+        console.log('✅ Match initialized with ID:', newMatchId)
+        alert(`✅ Match created on blockchain with ID: ${newMatchId}`)
+      } catch (error) {
+        console.error('❌ Failed to initialize match on blockchain:', error)
+        alert(`❌ Failed to create match on blockchain: ${error instanceof Error ? error.message : String(error)}`)
+        // Set a fallback match ID so the game can still work
+        setMatchId(1)
+        console.log('🔄 Using fallback match ID: 1')
+      }
+    }
+
+    initializeMatch()
+  }, [createMatchOnBlockchain])
+
   // Generate AI move (simplified AI logic)
   const generateAIMove = useCallback(() => {
-    if (gameState.status !== 'playing') return
+    console.log(`🤖 generateAIMove called for player: ${currentPlayer}`)
+    console.log(`🎮 Game status: ${gameState.status}`)
+    console.log(`🎯 Current match ID: ${matchId}`)
 
+    if (gameState.status !== 'playing') {
+      console.log('⏹️ Game not playing, skipping AI move generation')
+      return
+    }
+
+    console.log(`🧠 ${currentPlayer} is starting to think...`)
     setIsThinking(true)
     
     // Simulate thinking time
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         const possibleMoves = chess.moves({ verbose: true })
         
@@ -116,89 +223,46 @@ export function LiveMatch() {
         const moveResult = chess.move(selectedMove)
         
         if (moveResult) {
-          const newMove: ChessMove = {
-            id: Date.now().toString(),
-            player: currentPlayer,
-            move: `${moveResult.from}-${moveResult.to}`,
-            notation: moveResult.san,
-            timestamp: new Date(),
-            evaluation: Math.random() * 2 - 1, // Random evaluation for demo
-            from: moveResult.from,
-            to: moveResult.to,
-            fen: chess.fen(),
-            isCheck: chess.inCheck(),
-            isCheckmate: chess.isCheckmate(),
-            isStalemate: chess.isStalemate(),
-            isDraw: chess.isDraw()
-          }
-          //Todo : Implement on chiain data save
+                  const evaluation = Math.random() * 2 - 1 // Random evaluation for demo
+        const newMove: ChessMove = {
+          id: Date.now().toString(),
+          player: currentPlayer,
+          move: `${moveResult.from}-${moveResult.to}`,
+          notation: moveResult.san,
+          timestamp: new Date(),
+          evaluation: evaluation,
+          from: moveResult.from,
+          to: moveResult.to,
+          fen: chess.fen(),
+          isCheck: chess.inCheck(),
+          isCheckmate: chess.isCheckmate(),
+          isStalemate: chess.isStalemate(),
+          isDraw: chess.isDraw()
+        }
 
-          //Prompt
-          //create api endpoint to store Chessmove to smart contract
-          // Contract address
-          // ABI
-          // Chain ID : 
-          // RPC URL : 
-             /**
-  //    * @dev Record a chess move for a specific match
-  //    */
-  //   function recordMove(
-  //     uint256 _matchId,
-  //     PlayerType _player,
-  //     string memory _notation,
-  //     string memory _fromSquare,
-  //     string memory _toSquare,
-  //     string memory _fenPosition,
-  //     int256 _evaluation,
-  //     bool _isCheck,
-  //     bool _isCheckmate,
-  //     bool _isStalemate,
-  //     bool _isDraw
-  // ) external onlyAuthorizedOrganizer matchExists(_matchId) matchActive(_matchId) {
-      
-  //     Match storage currentMatch = matches[_matchId];
-      
-  //     // Create new move
-  //     ChessMove memory newMove = ChessMove({
-  //         moveId: matchMoves[_matchId].length + 1,
-  //         player: _player,
-  //         moveNotation: _notation,
-  //         fromSquare: _fromSquare,
-  //         toSquare: _toSquare,
-  //         fenPosition: _fenPosition,
-  //         timestamp: block.timestamp,
-  //         evaluation: _evaluation,
-  //         isCheck: _isCheck,
-  //         isCheckmate: _isCheckmate,
-  //         isStalemate: _isStalemate,
-  //         isDraw: _isDraw,
-  //         blockNumber: block.number
-  //     });
-      
-  //     // Add move to match
-  //     matchMoves[_matchId].push(newMove);
-  //     currentMatch.totalMoves++;
-      
-  //     // Check if game ended
-  //     if (_isCheckmate) {
-  //         _endMatch(_matchId, GameStatus.Checkmate, _player, "Checkmate", _fenPosition);
-  //     } else if (_isStalemate) {
-  //         _endMatch(_matchId, GameStatus.Stalemate, PlayerType.Claude, "Stalemate", _fenPosition);
-  //     } else if (_isDraw) {
-  //         _endMatch(_matchId, GameStatus.Draw, PlayerType.Claude, "Draw", _fenPosition);
-  //     }
-      
-  //     emit MoveRecorded(
-  //         _matchId,
-  //         newMove.moveId,
-  //         _player,
-  //         _notation,
-  //         _fromSquare,
-  //         _toSquare,
-  //         _isCheck,
-  //         block.timestamp
-  //     );
-  // }
+        console.log(`📊 AI Move Details:`, {
+          player: currentPlayer,
+          move: newMove.notation,
+          from: newMove.from,
+          to: newMove.to,
+          evaluation: evaluation,
+          matchId: matchId,
+          fen: newMove.fen.substring(0, 50) + '...'
+        })
+          // Record move to blockchain
+          if (matchId) {
+            try {
+              console.log(`🔗 Recording move to blockchain: ${newMove.notation} (Match ID: ${matchId})`)
+              await recordMoveToBlockchain(newMove, matchId)
+              console.log(`✅ Move ${newMove.notation} recorded to blockchain successfully`)
+            } catch (error) {
+              console.error('❌ Failed to record move to blockchain:', error)
+              alert(`❌ Failed to record move ${newMove.notation}: ${error instanceof Error ? error.message : String(error)}`)
+              // Continue with the game even if blockchain recording fails
+            }
+          } else {
+            console.warn('⚠️ No match ID available, skipping blockchain recording')
+          }
   
 
           setMoves(prev => [...prev, newMove])
@@ -217,7 +281,7 @@ export function LiveMatch() {
       
       setIsThinking(false)
     }, 2000 + Math.random() * 3000) // 2-5 seconds thinking time
-  }, [chess, currentPlayer, gameState.status, checkGameStatus])
+  }, [chess, currentPlayer, gameState.status, checkGameStatus, matchId, recordMoveToBlockchain])
 
   // Auto-play game
   useEffect(() => {
@@ -258,6 +322,22 @@ export function LiveMatch() {
         setLastMove(newMove)
         setBoardPosition(chess.board())
         
+        // Record move to blockchain asynchronously (don't wait for it)
+        if (matchId) {
+          console.log(`🔗 Recording manual move to blockchain: ${newMove.notation} (Match ID: ${matchId})`)
+          recordMoveToBlockchain(newMove, matchId)
+            .then(() => {
+              console.log(`✅ Manual move ${newMove.notation} recorded to blockchain successfully`)
+            })
+            .catch(error => {
+              console.error('❌ Failed to record manual move to blockchain:', error)
+              alert(`❌ Failed to record manual move ${newMove.notation}: ${error instanceof Error ? error.message : String(error)}`)
+              // Continue with the game even if blockchain recording fails
+            })
+        } else {
+          console.warn('⚠️ No match ID available for manual move, skipping blockchain recording')
+        }
+        
         if (!checkGameStatus()) {
           setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
         }
@@ -269,7 +349,50 @@ export function LiveMatch() {
       console.error('Invalid move:', error)
       return false
     }
-  }, [chess, currentPlayer, checkGameStatus])
+  }, [chess, currentPlayer, checkGameStatus, recordMoveToBlockchain])
+
+  // Test blockchain function
+  const testBlockchain = async () => {
+    try {
+      console.log('🔍 Running blockchain diagnostics...')
+      const response = await fetch('/api/test-blockchain')
+      const result = await response.json()
+      
+      console.log('🔍 Blockchain diagnostics result:', result)
+      
+      if (result.success) {
+        alert('✅ Blockchain setup is working correctly!')
+      } else {
+        alert(`❌ Blockchain issues found:\n${result.summary}\n\nCheck console for details.`)
+      }
+    } catch (error) {
+      console.error('❌ Failed to run blockchain diagnostics:', error)
+      alert(`❌ Failed to run diagnostics: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
+  // Test move recording function
+  const testMoveRecording = async () => {
+    try {
+      console.log('🧪 Testing move recording...')
+      const response = await fetch('/api/test-move', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const result = await response.json()
+      
+      console.log('🧪 Test move result:', result)
+      
+      if (result.success) {
+        alert(`✅ Test move recorded successfully!\nTx Hash: ${result.transactionHash}\nBlock: ${result.blockNumber}`)
+      } else {
+        alert(`❌ Test move failed:\n${result.error}\n\nCheck console for details.`)
+      }
+    } catch (error) {
+      console.error('❌ Failed to test move recording:', error)
+      alert(`❌ Test move error: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
 
   // Reset game function
   const resetGame = useCallback(() => {
@@ -280,7 +403,19 @@ export function LiveMatch() {
     setGameState({ status: 'playing' })
     setBoardPosition(chess.board())
     setIsThinking(false)
-  }, [chess])
+    setMatchId(null)
+    
+    // Create a new match when resetting
+    createMatchOnBlockchain()
+      .then(newMatchId => {
+        setMatchId(newMatchId)
+        console.log('✅ New match created for reset with ID:', newMatchId)
+      })
+      .catch(error => {
+        console.error('❌ Failed to create new match after reset:', error)
+        setMatchId(1) // Fallback
+      })
+  }, [chess, createMatchOnBlockchain])
 
   // Get game status message
   const getGameStatusMessage = () => {
@@ -335,6 +470,12 @@ export function LiveMatch() {
             <span>Move: {Math.ceil(moves.length / 2)}</span>
             <span>•</span>
             <span>FEN: {chess.fen().split(' ')[0]}...</span>
+            {matchId && (
+              <>
+                <span>•</span>
+                <span className="text-green-400">Match ID: {matchId}</span>
+              </>
+            )}
             {gameState.status !== 'playing' && (
               <>
                 <span>•</span>
@@ -345,6 +486,28 @@ export function LiveMatch() {
                   New Game
                 </button>
               </>
+            )}
+          </div>
+          
+          {/* Blockchain Debug Section */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+            <button 
+              onClick={testBlockchain}
+              className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
+            >
+              🔍 Test Setup
+            </button>
+            <button 
+              onClick={testMoveRecording}
+              className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
+            >
+              🧪 Test Move
+            </button>
+            {!matchId && (
+              <span className="text-xs text-red-400">⚠️ No blockchain match</span>
+            )}
+            {matchId && (
+              <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
             )}
           </div>
         </div>
