@@ -132,7 +132,7 @@ class BlockchainQueue {
     } catch (error) {
       clearTimeout(timeoutId)
       
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error('Request timeout: Blockchain request took too long')
       }
       
