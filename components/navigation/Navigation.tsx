@@ -13,14 +13,16 @@ import {
   HelpCircle, 
   Bell,
   Menu,
-  X
+  X,
+  Play
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationPanel } from './NotificationPanel'
 import { Logo } from '@/components/ui/Logo'
 
 const navigationItems = [
-  { name: 'Live Match', href: '/', icon: Home },
+  { name: 'Home', href: '/home', icon: Home },
+  { name: 'Live Match', href: '/', icon: Play },
   { name: 'Match History', href: '/history', icon: History },
   { name: 'My Bets', href: '/bets', icon: DollarSign },
   { name: 'AI Stats', href: '/stats', icon: BarChart3 },
