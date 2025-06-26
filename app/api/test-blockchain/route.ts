@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
       const balanceInEth = ethers.formatEther(balance)
       
       diagnostics.tests.walletBalance = {
-        status: balance > 0n ? 'PASS' : 'WARN',
+        status: balance > BigInt(0) ? 'PASS' : 'WARN',
         message: `Balance: ${balanceInEth} DEV tokens`,
         balance: balanceInEth,
-        hasBalance: balance > 0n
+        hasBalance: balance > BigInt(0)
       }
     } catch (error) {
       diagnostics.tests.walletBalance = {
