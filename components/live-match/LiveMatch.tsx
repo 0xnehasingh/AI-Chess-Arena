@@ -131,6 +131,75 @@ export function LiveMatch() {
             isStalemate: chess.isStalemate(),
             isDraw: chess.isDraw()
           }
+          //Todo : Implement on chiain data save
+
+          //Prompt
+          //create api endpoint to store Chessmove to smart contract
+          // Contract address
+          // ABI
+          // Chain ID : 
+          // RPC URL : 
+             /**
+  //    * @dev Record a chess move for a specific match
+  //    */
+  //   function recordMove(
+  //     uint256 _matchId,
+  //     PlayerType _player,
+  //     string memory _notation,
+  //     string memory _fromSquare,
+  //     string memory _toSquare,
+  //     string memory _fenPosition,
+  //     int256 _evaluation,
+  //     bool _isCheck,
+  //     bool _isCheckmate,
+  //     bool _isStalemate,
+  //     bool _isDraw
+  // ) external onlyAuthorizedOrganizer matchExists(_matchId) matchActive(_matchId) {
+      
+  //     Match storage currentMatch = matches[_matchId];
+      
+  //     // Create new move
+  //     ChessMove memory newMove = ChessMove({
+  //         moveId: matchMoves[_matchId].length + 1,
+  //         player: _player,
+  //         moveNotation: _notation,
+  //         fromSquare: _fromSquare,
+  //         toSquare: _toSquare,
+  //         fenPosition: _fenPosition,
+  //         timestamp: block.timestamp,
+  //         evaluation: _evaluation,
+  //         isCheck: _isCheck,
+  //         isCheckmate: _isCheckmate,
+  //         isStalemate: _isStalemate,
+  //         isDraw: _isDraw,
+  //         blockNumber: block.number
+  //     });
+      
+  //     // Add move to match
+  //     matchMoves[_matchId].push(newMove);
+  //     currentMatch.totalMoves++;
+      
+  //     // Check if game ended
+  //     if (_isCheckmate) {
+  //         _endMatch(_matchId, GameStatus.Checkmate, _player, "Checkmate", _fenPosition);
+  //     } else if (_isStalemate) {
+  //         _endMatch(_matchId, GameStatus.Stalemate, PlayerType.Claude, "Stalemate", _fenPosition);
+  //     } else if (_isDraw) {
+  //         _endMatch(_matchId, GameStatus.Draw, PlayerType.Claude, "Draw", _fenPosition);
+  //     }
+      
+  //     emit MoveRecorded(
+  //         _matchId,
+  //         newMove.moveId,
+  //         _player,
+  //         _notation,
+  //         _fromSquare,
+  //         _toSquare,
+  //         _isCheck,
+  //         block.timestamp
+  //     );
+  // }
+  
 
           setMoves(prev => [...prev, newMove])
           setLastMove(newMove)
