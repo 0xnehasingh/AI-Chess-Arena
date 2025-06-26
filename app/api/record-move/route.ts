@@ -94,10 +94,23 @@ interface ChessMoveData {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('🎯 Record move endpoint called')
     const moveData: ChessMoveData = await request.json()
+    console.log('📝 Move data received:', {
+      matchId: moveData.matchId,
+      player: moveData.player,
+      moveNotation: moveData.moveNotation,
+      fromSquare: moveData.fromSquare,
+      toSquare: moveData.toSquare
+    })
 
     // Validate required fields
     if (!moveData.matchId || !moveData.player || !moveData.moveNotation) {
+      console.error('❌ Missing required fields:', { 
+        matchId: moveData.matchId, 
+        player: moveData.player, 
+        moveNotation: moveData.moveNotation 
+      })
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -105,25 +118,71 @@ export async function POST(request: NextRequest) {
     }
 
     // Set up provider and signer
+    console.log('🌐 Setting up provider...')
     const provider = new ethers.JsonRpcProvider(RPC_URL)
+    
+    // Test network connection
+    try {
+      const network = await provider.getNetwork()
+      console.log('✅ Network connected:', { name: network.name, chainId: network.chainId.toString() })
+    } catch (networkError) {
+      console.error('❌ Network connection failed:', networkError)
+      return NextResponse.json(
+        { error: 'Failed to connect to blockchain network' },
+        { status: 500 }
+      )
+    }
     
     // Get private key from environment variables
     const privateKey = process.env.WALLET_PRIVATE_KEY
     if (!privateKey) {
+      console.error('❌ WALLET_PRIVATE_KEY not configured in environment variables')
       return NextResponse.json(
-        { error: 'Wallet private key not configured' },
+        { error: 'Wallet private key not configured. Please set WALLET_PRIVATE_KEY in your environment variables.' },
         { status: 500 }
       )
     }
 
-    const wallet = new ethers.Wallet(privateKey, provider)
+    console.log('🔑 Private key loaded, creating wallet...')
+    let wallet: ethers.Wallet
+    try {
+      wallet = new ethers.Wallet(privateKey, provider)
+      console.log('👛 Wallet created successfully:', wallet.address)
+    } catch (walletError) {
+      console.error('❌ Invalid private key format:', walletError)
+      return NextResponse.json(
+        { error: 'Invalid wallet private key format' },
+        { status: 500 }
+      )
+    }
+
+    // Check wallet balance
+    try {
+      const balance = await provider.getBalance(wallet.address)
+      const balanceInEth = ethers.formatEther(balance)
+      console.log('💰 Wallet balance:', balanceInEth, 'DEV tokens')
+      
+      if (balance === BigInt(0)) {
+        console.warn('⚠️ Wallet has zero balance. Get DEV tokens from: https://apps.moonbeam.network/faucet/')
+        return NextResponse.json(
+          { error: 'Wallet has insufficient balance. Get DEV tokens from the Moonbeam testnet faucet.' },
+          { status: 500 }
+        )
+      }
+    } catch (balanceError) {
+      console.error('❌ Failed to check wallet balance:', balanceError)
+    }
+
+    console.log('📄 Creating contract instance...')
     const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, wallet)
 
     // Convert player name to enum value (0 = Claude, 1 = ChatGPT)
     const playerType = moveData.player === 'Claude' ? 0 : 1
+    console.log('👤 Player type:', playerType, '(0=Claude, 1=ChatGPT)')
 
     // Convert evaluation to wei (multiply by 1e18 for precision)
     const evaluationWei = ethers.parseUnits(moveData.evaluation.toString(), 18)
+    console.log('📊 Evaluation in wei:', evaluationWei.toString())
 
     // Prepare move parameters
     const moveParams = {
@@ -139,11 +198,49 @@ export async function POST(request: NextRequest) {
       isDraw: moveData.isDraw
     }
 
+    console.log('🔧 Move params prepared:', {
+      player: moveParams.player,
+      moveNotation: moveParams.moveNotation,
+      fromSquare: moveParams.fromSquare,
+      toSquare: moveParams.toSquare,
+      evaluation: moveParams.evaluation.toString()
+    })
+
+    // Estimate gas first to catch potential issues
+    try {
+      console.log('⛽ Estimating gas...')
+      const gasEstimate = await contract.recordMove.estimateGas(moveData.matchId, moveParams)
+      console.log('⛽ Gas estimate:', gasEstimate.toString())
+    } catch (gasError) {
+      console.error('❌ Gas estimation failed:', gasError)
+      
+      // Check if it's an authorization issue
+      if (gasError instanceof Error && gasError.message.includes('OrganizerOnly')) {
+        return NextResponse.json(
+          { error: 'Wallet is not authorized as organizer. Contact the contract owner to add authorization.' },
+          { status: 403 }
+        )
+      }
+      
+      return NextResponse.json(
+        { error: `Gas estimation failed: ${gasError instanceof Error ? gasError.message : String(gasError)}` },
+        { status: 500 }
+      )
+    }
+
     // Record the move on the blockchain
+    console.log('🚀 Sending transaction...')
     const tx = await contract.recordMove(moveData.matchId, moveParams)
+    console.log('📤 Transaction sent:', tx.hash)
     
     // Wait for transaction confirmation
+    console.log('⏳ Waiting for confirmation...')
     const receipt = await tx.wait()
+    console.log('✅ Transaction confirmed:', {
+      hash: receipt.hash,
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed.toString()
+    })
 
     return NextResponse.json({
       success: true,

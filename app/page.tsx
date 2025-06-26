@@ -1,4 +1,4 @@
-import { LiveMatchContainer } from '@/components/live-match/LiveMatchContainer'
+import { LiveMatch } from '@/components/live-match/LiveMatch'
 import { BettingInterface } from '@/components/betting/BettingInterface'
 
 export default function HomePage() {
@@ -80,7 +80,7 @@ export default function HomePage() {
 
         {/* Center and Right - Chess Game with Commentary and History */}
         <div className="xl:col-span-3">
-          <LiveMatchContainer />
+                      <LiveMatch />
         </div>
       </div>
     </div>

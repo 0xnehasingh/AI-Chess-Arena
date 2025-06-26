@@ -33,6 +33,71 @@ const CONTRACT_ABI = [
     ],
     "stateMutability": "nonpayable",
     "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "getContractStats",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "_totalMatches",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_activeMatches",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_completedMatches",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_verifiedMatches",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "uint256",
+        "name": "matchId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ChessTournament.PlayerType",
+        "name": "whitePlayer",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "enum ChessTournament.PlayerType",
+        "name": "blackPlayer",
+        "type": "uint8"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "initialFen",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      }
+    ],
+    "name": "MatchCreated",
+    "type": "event"
   }
 ]
 
@@ -76,24 +141,58 @@ export async function POST(request: NextRequest) {
     // Use provided FEN or default starting position
     const initialFen = matchData.initialFen || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
-    // Create the match on the blockchain
+    // Get current stats to predict the next match ID
+    const statsBefore = await contract.getContractStats()
+    const expectedMatchId = parseInt(statsBefore._totalMatches.toString()) + 1
+    console.log('🎯 Creating match with players:', { whitePlayerType, blackPlayerType })
+    console.log('📊 Expected match ID:', expectedMatchId)
+    
+    // Call the contract function and wait for the result
     const tx = await contract.createMatch(whitePlayerType, blackPlayerType, initialFen)
+    console.log('📤 Transaction sent:', tx.hash)
     
     // Wait for transaction confirmation
     const receipt = await tx.wait()
+    console.log('✅ Transaction confirmed in block:', receipt.blockNumber)
 
-    // Extract match ID from transaction logs
+    // First try to extract match ID from events
     let matchId = null
     for (const log of receipt.logs) {
       try {
         const parsedLog = contract.interface.parseLog(log)
         if (parsedLog?.name === 'MatchCreated') {
           matchId = parsedLog.args.matchId.toString()
+          console.log('🎯 Match ID extracted from event:', matchId)
           break
         }
       } catch (error) {
         // Skip logs that can't be parsed
         continue
+      }
+    }
+
+    // If event parsing fails, use the expected sequential match ID
+    if (!matchId) {
+      console.log('⚠️ Could not parse MatchCreated event, using expected sequential ID...')
+      
+      // Get updated stats to confirm the match was created
+      try {
+        const statsAfter = await contract.getContractStats()
+        const actualTotalMatches = parseInt(statsAfter._totalMatches.toString())
+        
+        if (actualTotalMatches > parseInt(statsBefore._totalMatches.toString())) {
+          // Match was created successfully, use the expected ID
+          matchId = expectedMatchId.toString()
+          console.log('✅ Using sequential match ID:', matchId)
+        } else {
+          // Fallback to block number if something went wrong
+          matchId = receipt.blockNumber.toString()
+          console.log('⚠️ Fallback to block number as match ID:', matchId)
+        }
+      } catch (error) {
+        // Final fallback
+        matchId = expectedMatchId.toString()
+        console.log('🔄 Using expected match ID as fallback:', matchId)
       }
     }
 
