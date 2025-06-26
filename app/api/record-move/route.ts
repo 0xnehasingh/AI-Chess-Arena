@@ -117,19 +117,28 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Set up provider and signer
+    // Set up provider and signer with timeout
     console.log('🌐 Setting up provider...')
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
+    const provider = new ethers.JsonRpcProvider(RPC_URL, undefined, {
+      staticNetwork: ethers.Network.from(CHAIN_ID)
+    })
     
-    // Test network connection
+    // Test network connection with timeout
     try {
-      const network = await provider.getNetwork()
+      console.log('📡 Testing network connection...')
+      const network = await Promise.race([
+        provider.getNetwork(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Network connection timeout after 15 seconds')), 15000)
+        )
+      ]) as ethers.Network
+      
       console.log('✅ Network connected:', { name: network.name, chainId: network.chainId.toString() })
     } catch (networkError) {
       console.error('❌ Network connection failed:', networkError)
       return NextResponse.json(
-        { error: 'Failed to connect to blockchain network' },
-        { status: 500 }
+        { error: 'Failed to connect to blockchain network. Network may be experiencing issues.' },
+        { status: 503 }
       )
     }
     
@@ -228,26 +237,71 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Record the move on the blockchain
+    // Record the move on the blockchain with timeout
     console.log('🚀 Sending transaction...')
-    const tx = await contract.recordMove(moveData.matchId, moveParams)
-    console.log('📤 Transaction sent:', tx.hash)
+    let tx: ethers.ContractTransactionResponse
+    try {
+      tx = await Promise.race([
+        contract.recordMove(moveData.matchId, moveParams),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Transaction timeout after 30 seconds')), 30000)
+        )
+      ]) as ethers.ContractTransactionResponse
+      
+      console.log('📤 Transaction sent:', tx.hash)
+    } catch (txError) {
+      console.error('❌ Transaction failed:', txError)
+      
+      if (txError instanceof Error && txError.message.includes('timeout')) {
+        return NextResponse.json(
+          { error: 'Transaction timeout. Network may be congested.' },
+          { status: 503 }
+        )
+      }
+      
+      throw txError
+    }
     
-    // Wait for transaction confirmation
+    // Wait for transaction confirmation with timeout
     console.log('⏳ Waiting for confirmation...')
-    const receipt = await tx.wait()
-    console.log('✅ Transaction confirmed:', {
-      hash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString()
-    })
+    try {
+      const receipt = await Promise.race([
+        tx.wait(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Confirmation timeout after 60 seconds')), 60000)
+        )
+      ]) as ethers.ContractTransactionReceipt
+      
+      console.log('✅ Transaction confirmed:', {
+        hash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString()
+      })
+      
+      return NextResponse.json({
+        success: true,
+        transactionHash: receipt.hash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed.toString()
+      })
+    } catch (confirmError) {
+      console.error('❌ Confirmation failed:', confirmError)
+      
+      if (confirmError instanceof Error && confirmError.message.includes('timeout')) {
+        // Transaction was sent but confirmation timed out
+        return NextResponse.json({
+          success: true,
+          transactionHash: tx.hash,
+          blockNumber: null,
+          gasUsed: null,
+          warning: 'Transaction sent but confirmation timed out. Check blockchain explorer.'
+        })
+      }
+      
+      throw confirmError
+    }
 
-    return NextResponse.json({
-      success: true,
-      transactionHash: receipt.hash,
-      blockNumber: receipt.blockNumber,
-      gasUsed: receipt.gasUsed.toString()
-    })
+
 
   } catch (error) {
     console.error('Error recording move to blockchain:', error)
