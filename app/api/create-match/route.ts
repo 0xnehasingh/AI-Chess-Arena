@@ -119,15 +119,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Set up provider and signer
-    const provider = new ethers.JsonRpcProvider(RPC_URL)
-    
-    // Get private key from environment variables
+    // Get private key from environment variables first
     const privateKey = process.env.WALLET_PRIVATE_KEY
     if (!privateKey) {
       return NextResponse.json(
         { error: 'Wallet private key not configured' },
         { status: 500 }
+      )
+    }
+
+    // Set up provider with timeout
+    const provider = new ethers.JsonRpcProvider(RPC_URL, undefined, {
+      staticNetwork: ethers.Network.from(1287)
+    })
+    
+    // Test network connection
+    try {
+      console.log('📡 Testing network connection...')
+      const network = await Promise.race([
+        provider.getNetwork(),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Network connection timeout')), 15000)
+        )
+      ]) as ethers.Network
+      
+      console.log('✅ Network connected:', network.chainId.toString())
+    } catch (networkError) {
+      console.error('❌ Network connection failed:', networkError)
+      return NextResponse.json(
+        { error: 'Failed to connect to blockchain network' },
+        { status: 503 }
       )
     }
 
@@ -211,12 +232,33 @@ export async function POST(request: NextRequest) {
     console.error('Error creating match on blockchain:', error)
     
     let errorMessage = 'Failed to create match'
+    let errorDetails = null
+    
     if (error instanceof Error) {
       errorMessage = error.message
+      errorDetails = {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      }
+    }
+
+    // Add environment info for debugging
+    const debugInfo = {
+      nodeEnv: process.env.NODE_ENV,
+      hasPrivateKey: !!process.env.WALLET_PRIVATE_KEY,
+      vercelRegion: process.env.VERCEL_REGION || 'local',
+      contractAddress: CONTRACT_ADDRESS,
+      rpcUrl: RPC_URL
     }
 
     return NextResponse.json(
-      { error: errorMessage },
+      { 
+        error: errorMessage,
+        details: errorDetails,
+        debug: debugInfo,
+        timestamp: new Date().toISOString()
+      },
       { status: 500 }
     )
   }

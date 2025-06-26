@@ -7,6 +7,7 @@ import { ChessBoard } from './ChessBoard'
 import { LiveCommentary } from './LiveCommentary'
 import { MoveHistory } from './MoveHistory'
 import { getAIMove } from '@/lib/agent'
+import { blockchainQueue } from '@/lib/blockchain-queue'
 
 export interface ChessMove {
   id: string
@@ -39,37 +40,24 @@ export function LiveMatch() {
   const [boardPosition, setBoardPosition] = useState(chess.board())
   const [isThinking, setIsThinking] = useState(false)
   const [matchId, setMatchId] = useState<number | null>(null)
+  const [queueStatus, setQueueStatus] = useState({ queueLength: 0, processing: false })
 
   // Function to create a match on blockchain
   const createMatchOnBlockchain = useCallback(async () => {
     try {
-      console.log('🚀 Starting match creation on blockchain...')
+      console.log('🚀 Starting match creation on blockchain via queue...')
       console.log('🎯 Match details:', {
         whitePlayer: 'Claude',
         blackPlayer: 'ChatGPT',
         initialFen: chess.fen()
       })
 
-      const response = await fetch('/api/create-match', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          whitePlayer: 'Claude',  // Claude plays white
-          blackPlayer: 'ChatGPT', // ChatGPT plays black
-          initialFen: chess.fen()
-        }),
+      const result = await blockchainQueue.addRequest('create-match', {
+        whitePlayer: 'Claude',  // Claude plays white
+        blackPlayer: 'ChatGPT', // ChatGPT plays black
+        initialFen: chess.fen()
       })
-
-      console.log('📡 Create match response status:', response.status)
-      const result = await response.json()
-      console.log('📡 Create match response data:', result)
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to create match')
-      }
-
       console.log('✅ Match created on blockchain successfully:', result)
       
       if (!result.matchId) {
@@ -93,37 +81,38 @@ export function LiveMatch() {
   // Function to record move to blockchain
   const recordMoveToBlockchain = async (move: ChessMove, matchId: number) => {
     try {
-      const response = await fetch('/api/record-move', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          matchId,
-          player: move.player,
-          moveNotation: move.notation,
-          fromSquare: move.from,
-          toSquare: move.to,
-          fenPosition: move.fen,
-          evaluation: move.evaluation || 0,
-          isCheck: move.isCheck || false,
-          isCheckmate: move.isCheckmate || false,
-          isStalemate: move.isStalemate || false,
-          isDraw: move.isDraw || false,
-        }),
+      console.log(`🔄 Queuing move ${move.notation} for blockchain recording...`)
+      
+      const result = await blockchainQueue.addRequest('record-move', {
+        matchId,
+        player: move.player,
+        moveNotation: move.notation,
+        fromSquare: move.from,
+        toSquare: move.to,
+        fenPosition: move.fen,
+        evaluation: move.evaluation || 0,
+        isCheck: move.isCheck || false,
+        isCheckmate: move.isCheckmate || false,
+        isStalemate: move.isStalemate || false,
+        isDraw: move.isDraw || false,
       })
 
-      const result = await response.json()
+      console.log('✅ Move recorded to blockchain via queue:', result)
       
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to record move')
-      }
-
-      console.log('Move recorded to blockchain:', result)
+      // Update queue status
+      setQueueStatus(blockchainQueue.getQueueStatus())
+      
       return result
     } catch (error) {
-      console.error('Blockchain recording error:', error)
+      console.error('❌ Blockchain recording error:', error)
+      
+      // Update queue status even on error
+      setQueueStatus(blockchainQueue.getQueueStatus())
+      
       throw error
+    } finally {
+      // Always update queue status
+      setTimeout(() => setQueueStatus(blockchainQueue.getQueueStatus()), 1000)
     }
   }
 
@@ -464,6 +453,19 @@ export function LiveMatch() {
     }
   }
 
+  // Manual match creation for debugging
+  const createMatchManually = async () => {
+    try {
+      console.log('🔧 Manually creating match...')
+      const newMatchId = await createMatchOnBlockchain()
+      setMatchId(newMatchId)
+      alert(`✅ Match created manually with ID: ${newMatchId}`)
+    } catch (error) {
+      console.error('❌ Manual match creation failed:', error)
+      alert(`❌ Manual match creation failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   // Reset game function
   const resetGame = useCallback(() => {
     chess.reset()
@@ -562,27 +564,43 @@ export function LiveMatch() {
               )}
             </div>
             
-            {/* Blockchain Debug Section */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-              <button 
-                onClick={testBlockchain}
-                className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
-              >
-                🔍 Test Setup
-              </button>
-              <button 
-                onClick={testMoveRecording}
-                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
-              >
-                🧪 Test Move
-              </button>
-              {!matchId && (
+                      {/* Blockchain Debug Section */}
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+            <button 
+              onClick={testBlockchain}
+              className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
+            >
+              🔍 Test Setup
+            </button>
+            <button 
+              onClick={testMoveRecording}
+              className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
+            >
+              🧪 Test Move
+            </button>
+            {!matchId && (
+              <>
+                <button 
+                  onClick={createMatchManually}
+                  className="text-xs px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded-full transition-colors"
+                >
+                  🔧 Create Match
+                </button>
                 <span className="text-xs text-red-400">⚠️ No blockchain match</span>
-              )}
-              {matchId && (
-                <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
-              )}
-            </div>
+              </>
+            )}
+            {matchId && (
+              <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
+            )}
+            
+            {/* Queue Status */}
+            {(queueStatus.queueLength > 0 || queueStatus.processing) && (
+              <div className="text-xs text-blue-400">
+                📊 Queue: {queueStatus.queueLength} pending
+                {queueStatus.processing && ' ⚡ processing'}
+              </div>
+            )}
+          </div>
           </div>
 
           {/* Chess Board */}
