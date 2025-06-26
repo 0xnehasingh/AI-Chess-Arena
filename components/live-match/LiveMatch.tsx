@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Chess } from 'chess.js'
 import { ChessBoard } from './ChessBoard'
+import { LiveCommentary } from './LiveCommentary'
+import { MoveHistory } from './MoveHistory'
+import { getAIMove } from '@/lib/agent'
 
 export interface ChessMove {
   id: string
@@ -68,8 +71,18 @@ export function LiveMatch() {
       }
 
       console.log('✅ Match created on blockchain successfully:', result)
+      
+      if (!result.matchId) {
+        throw new Error('No match ID returned from blockchain')
+      }
+      
       const matchId = parseInt(result.matchId)
       console.log('🎯 Parsed match ID:', matchId)
+      
+      if (isNaN(matchId)) {
+        throw new Error(`Invalid match ID returned: ${result.matchId}`)
+      }
+      
       return matchId
     } catch (error) {
       console.error('❌ Blockchain match creation error:', error)
@@ -165,10 +178,37 @@ export function LiveMatch() {
         alert(`✅ Match created on blockchain with ID: ${newMatchId}`)
       } catch (error) {
         console.error('❌ Failed to initialize match on blockchain:', error)
-        alert(`❌ Failed to create match on blockchain: ${error instanceof Error ? error.message : String(error)}`)
-        // Set a fallback match ID so the game can still work
-        setMatchId(1)
-        console.log('🔄 Using fallback match ID: 1')
+        console.log('🔄 Trying to create match via API as fallback...')
+        
+        // Try to create match via direct API call as fallback
+        try {
+          const apiResponse = await fetch('/api/create-match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              whitePlayer: 'Claude',
+              blackPlayer: 'ChatGPT',
+              initialFen: chess.fen()
+            })
+          })
+          
+          if (apiResponse.ok) {
+            const apiResult = await apiResponse.json()
+            if (apiResult.success && apiResult.matchId) {
+              setMatchId(parseInt(apiResult.matchId))
+              console.log('✅ Fallback match created via API with ID:', apiResult.matchId)
+              alert(`✅ Match created via API fallback with ID: ${apiResult.matchId}`)
+              return
+            }
+          }
+        } catch (apiError) {
+          console.error('❌ API fallback also failed:', apiError)
+        }
+        
+        // If both methods fail, disable blockchain recording
+        setMatchId(null)
+        console.log('❌ Both blockchain methods failed, playing without blockchain recording')
+        alert(`❌ Failed to create match on blockchain. Game will continue without blockchain recording.`)
       }
     }
 
@@ -189,7 +229,7 @@ export function LiveMatch() {
     console.log(`🧠 ${currentPlayer} is starting to think...`)
     setIsThinking(true)
     
-    // Simulate thinking time
+    // Real AI thinking time
     setTimeout(async () => {
       try {
         const possibleMoves = chess.moves({ verbose: true })
@@ -200,39 +240,70 @@ export function LiveMatch() {
           return
         }
 
-        // Simple AI: Random move with slight preference for captures and checks
-        let selectedMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
+        console.log(`🤖 Calling real AI for ${currentPlayer}...`)
         
-        // Prefer captures (simplified AI logic)
-        const captures = possibleMoves.filter(move => move.captured)
-        if (captures.length > 0 && Math.random() > 0.7) {
-          selectedMove = captures[Math.floor(Math.random() * captures.length)]
-        }
-
-        // Prefer checks
-        const checks = possibleMoves.filter(move => {
+        // Call real AI (OpenAI for ChatGPT, Anthropic for Claude)
+        const aiProvider = currentPlayer === 'ChatGPT' ? 'openai' : 'anthropic'
+        
+        try {
+          // Get AI move using the agent
+          const newFen = await getAIMove(aiProvider, chess.fen())
+          
+          // Parse the new FEN to get the move that was made
           const tempChess = new Chess(chess.fen())
-          tempChess.move(move)
-          return tempChess.inCheck()
-        })
-        if (checks.length > 0 && Math.random() > 0.8) {
-          selectedMove = checks[Math.floor(Math.random() * checks.length)]
+          const history = tempChess.history({ verbose: true })
+          
+          // Load the new position and see what move was made
+          const newChess = new Chess(newFen)
+          const newHistory = newChess.history({ verbose: true })
+          
+          // The last move should be the AI's move
+          const aiMove = newHistory[newHistory.length - 1]
+          
+          if (aiMove) {
+            // Apply the move to our chess instance
+            const moveResult = chess.move(aiMove)
+            
+            if (moveResult) {
+              console.log(`🎯 ${currentPlayer} (${aiProvider}) chose: ${moveResult.san}`)
+            } else {
+              throw new Error('Failed to apply AI move')
+            }
+          } else {
+            throw new Error('No move found in AI response')
+          }
+        } catch (aiError) {
+          console.error(`❌ ${currentPlayer} AI failed:`, aiError)
+          console.log('🔄 Falling back to random move...')
+          
+          // Fallback to random move if AI fails
+          const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)]
+          const moveResult = chess.move(randomMove)
+          
+          if (!moveResult) {
+            throw new Error('Fallback move also failed')
+          }
         }
-
-        // Make the move
-        const moveResult = chess.move(selectedMove)
         
-        if (moveResult) {
-                  const evaluation = Math.random() * 2 - 1 // Random evaluation for demo
+        // At this point, a move has been made (either AI or fallback)
+        const currentHistory = chess.history({ verbose: true })
+        const lastMove = currentHistory[currentHistory.length - 1]
+        
+        if (!lastMove) {
+          throw new Error('No move was actually made')
+        }
+        
+        // Create move record from the last move made
+        const evaluation = Math.random() * 2 - 1 // Random evaluation for demo
         const newMove: ChessMove = {
           id: Date.now().toString(),
           player: currentPlayer,
-          move: `${moveResult.from}-${moveResult.to}`,
-          notation: moveResult.san,
+          move: `${lastMove.from}-${lastMove.to}`,
+          notation: lastMove.san,
           timestamp: new Date(),
           evaluation: evaluation,
-          from: moveResult.from,
-          to: moveResult.to,
+          from: lastMove.from,
+          to: lastMove.to,
           fen: chess.fen(),
           isCheck: chess.inCheck(),
           isCheckmate: chess.isCheckmate(),
@@ -269,11 +340,10 @@ export function LiveMatch() {
           setLastMove(newMove)
           setBoardPosition(chess.board())
           
-          // Check if game ended
-          if (!checkGameStatus()) {
-            // Switch players
-            setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
-          }
+        // Check if game ended
+        if (!checkGameStatus()) {
+          // Switch players
+          setCurrentPlayer(current => current === 'Claude' ? 'ChatGPT' : 'Claude')
         }
       } catch (error) {
         console.error('Error generating AI move:', error)
@@ -442,87 +512,105 @@ export function LiveMatch() {
   }
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
-      <div className="p-6">
-        {/* Game Status */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
-            <div className={`w-2 h-2 rounded-full ${
-              gameState.status === 'playing' ? 'bg-green-400 animate-pulse' : 
-              gameState.status === 'checkmate' ? 'bg-red-400' : 'bg-yellow-400'
-            }`}></div>
-            <span className="text-white text-sm font-medium">
-              {gameState.status === 'playing' ? 'Live Game' : 'Game Over'}
-            </span>
-          </div>
-          
-          <p className="text-purple-300 mt-2">
-            {getGameStatusMessage()}
-          </p>
-          
-          {chess.inCheck() && gameState.status === 'playing' && (
-            <p className="text-red-400 text-sm mt-1">
-              ⚠️ {currentPlayer} is in check!
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left Column - Chess Board */}
+      <div className="bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 overflow-hidden">
+        <div className="p-6">
+          {/* Game Status */}
+          <div className="text-center mb-6">
+            <div className="inline-flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full">
+              <div className={`w-2 h-2 rounded-full ${
+                gameState.status === 'playing' ? 'bg-green-400 animate-pulse' : 
+                gameState.status === 'checkmate' ? 'bg-red-400' : 'bg-yellow-400'
+              }`}></div>
+              <span className="text-white text-sm font-medium">
+                {gameState.status === 'playing' ? 'Live Game' : 'Game Over'}
+              </span>
+              <span className="text-purple-300 text-xs">🧠 vs 🤖</span>
+            </div>
+            
+            <p className="text-purple-300 mt-2">
+              {getGameStatusMessage()}
             </p>
-          )}
-          
-          <div className="flex items-center justify-center gap-4 mt-3 text-sm text-purple-400">
-            <span>Move: {Math.ceil(moves.length / 2)}</span>
-            <span>•</span>
-            <span>FEN: {chess.fen().split(' ')[0]}...</span>
-            {matchId && (
-              <>
-                <span>•</span>
-                <span className="text-green-400">Match ID: {matchId}</span>
-              </>
+            
+            {chess.inCheck() && gameState.status === 'playing' && (
+              <p className="text-red-400 text-sm mt-1">
+                ⚠️ {currentPlayer} is in check!
+              </p>
             )}
-            {gameState.status !== 'playing' && (
-              <>
-                <span>•</span>
-                <button 
-                  onClick={resetGame}
-                  className="text-cyan-400 hover:text-cyan-300 underline"
-                >
-                  New Game
-                </button>
-              </>
-            )}
+            
+            <div className="flex items-center justify-center gap-4 mt-3 text-sm text-purple-400">
+              <span>Move: {Math.ceil(moves.length / 2)}</span>
+              <span>•</span>
+              <span>FEN: {chess.fen().split(' ')[0]}...</span>
+              {matchId && (
+                <>
+                  <span>•</span>
+                  <span className="text-green-400">Match ID: {matchId}</span>
+                </>
+              )}
+              {gameState.status !== 'playing' && (
+                <>
+                  <span>•</span>
+                  <button 
+                    onClick={resetGame}
+                    className="text-cyan-400 hover:text-cyan-300 underline"
+                  >
+                    New Game
+                  </button>
+                </>
+              )}
+            </div>
+            
+            {/* Blockchain Debug Section */}
+            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+              <button 
+                onClick={testBlockchain}
+                className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
+              >
+                🔍 Test Setup
+              </button>
+              <button 
+                onClick={testMoveRecording}
+                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
+              >
+                🧪 Test Move
+              </button>
+              {!matchId && (
+                <span className="text-xs text-red-400">⚠️ No blockchain match</span>
+              )}
+              {matchId && (
+                <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
+              )}
+            </div>
           </div>
-          
-          {/* Blockchain Debug Section */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-            <button 
-              onClick={testBlockchain}
-              className="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
-            >
-              🔍 Test Setup
-            </button>
-            <button 
-              onClick={testMoveRecording}
-              className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full transition-colors"
-            >
-              🧪 Test Move
-            </button>
-            {!matchId && (
-              <span className="text-xs text-red-400">⚠️ No blockchain match</span>
-            )}
-            {matchId && (
-              <span className="text-xs text-green-400">✅ Match ID: {matchId}</span>
-            )}
-          </div>
-        </div>
 
-        {/* Chess Board */}
-        <ChessBoard 
-          moves={moves} 
+          {/* Chess Board */}
+          <ChessBoard 
+            moves={moves} 
+            currentPlayer={currentPlayer}
+            lastMove={lastMove}
+            boardPosition={boardPosition}
+            gameState={gameState}
+            chess={chess}
+            onMove={makeMove}
+            isThinking={isThinking}
+          />
+        </div>
+      </div>
+
+      {/* Right Column - Commentary and History */}
+      <div className="space-y-6">
+        {/* Live Commentary */}
+        <LiveCommentary 
+          moves={moves}
           currentPlayer={currentPlayer}
-          lastMove={lastMove}
-          boardPosition={boardPosition}
           gameState={gameState}
-          chess={chess}
-          onMove={makeMove}
           isThinking={isThinking}
         />
+        
+        {/* Move History */}
+        <MoveHistory moves={moves} />
       </div>
     </div>
   )
