@@ -1,16 +1,29 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+// Validate environment variables
+if (!supabaseUrl) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL environment variable')
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY environment variable')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Server-side client for API routes
+// Server-side client for API routes (with fallback)
 export const createServerClient = () => {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
+  if (!supabaseServiceKey) {
+    console.warn('SUPABASE_SERVICE_ROLE_KEY not found, falling back to anon key')
+    // Fallback to anon key for development
+    return createClient(supabaseUrl, supabaseAnonKey)
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey)
 }
 
 // Database types
@@ -28,6 +41,14 @@ export interface Database {
           total_winnings: number
           total_bets: number
           win_rate: number
+          user_role: 'player' | 'partner'
+          website: string | null
+          telegram_discord: string | null
+          logo_url: string | null
+          banner_url: string | null
+          short_bio: string | null
+          ticket_name: string | null
+          project_name: string | null
           created_at: string
           updated_at: string
         }
@@ -41,6 +62,14 @@ export interface Database {
           total_winnings?: number
           total_bets?: number
           win_rate?: number
+          user_role?: 'player' | 'partner'
+          website?: string | null
+          telegram_discord?: string | null
+          logo_url?: string | null
+          banner_url?: string | null
+          short_bio?: string | null
+          ticket_name?: string | null
+          project_name?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -54,6 +83,14 @@ export interface Database {
           total_winnings?: number
           total_bets?: number
           win_rate?: number
+          user_role?: 'player' | 'partner'
+          website?: string | null
+          telegram_discord?: string | null
+          logo_url?: string | null
+          banner_url?: string | null
+          short_bio?: string | null
+          ticket_name?: string | null
+          project_name?: string | null
           created_at?: string
           updated_at?: string
         }

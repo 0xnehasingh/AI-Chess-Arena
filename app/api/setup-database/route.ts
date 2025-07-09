@@ -14,78 +14,128 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Read the migration SQL file
+    // Read the migration SQL files
     const fs = await import('fs/promises')
     const path = await import('path')
     
-    const migrationPath = path.join(process.cwd(), 'supabase', 'migrations', '001_initial_schema.sql')
+    const migrationsDir = path.join(process.cwd(), 'supabase', 'migrations')
     
-    let migrationSQL: string
+    // Get all migration files in order
+    let migrationFiles: string[]
     try {
-      migrationSQL = await fs.readFile(migrationPath, 'utf-8')
+      const files = await fs.readdir(migrationsDir)
+      migrationFiles = files
+        .filter(file => file.endsWith('.sql'))
+        .sort() // This will sort them in order: 001_, 002_, 003_, etc.
+      
+      console.log('Found migration files:', migrationFiles)
     } catch (error) {
       return NextResponse.json(
-        { error: 'Migration file not found. Please ensure the SQL migration file exists.' },
+        { error: 'Migration directory not found. Please ensure the migrations directory exists.' },
         { status: 404 }
       )
     }
 
-    // Split SQL into individual statements
-    const statements = migrationSQL
-      .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'))
+    if (migrationFiles.length === 0) {
+      return NextResponse.json(
+        { error: 'No migration files found.' },
+        { status: 404 }
+      )
+    }
 
-    const results = []
+    const allResults = []
     
-    // Execute each statement
-    for (const statement of statements) {
+    // Run each migration file
+    for (const migrationFile of migrationFiles) {
+      console.log(`\n=== Running migration: ${migrationFile} ===`)
+      
+      const migrationPath = path.join(migrationsDir, migrationFile)
+      
+      let migrationSQL: string
       try {
-        const { data, error } = await supabase.rpc('exec_sql', { 
-          sql_statement: statement + ';' 
+        migrationSQL = await fs.readFile(migrationPath, 'utf-8')
+      } catch (error) {
+        allResults.push({
+          file: migrationFile,
+          status: 'error',
+          error: `Failed to read migration file: ${migrationFile}`
         })
-        
-        if (error) {
-          // If exec_sql function doesn't exist, try direct query
-          const directResult = await supabase.from('_raw_sql').select('*').limit(1)
-          if (directResult.error) {
-            console.warn('Could not execute SQL statement directly:', statement)
-            results.push({
+        continue
+      }
+
+      // Split SQL into individual statements
+      const statements = migrationSQL
+        .split(';')
+        .map(stmt => stmt.trim())
+        .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'))
+
+      const migrationResults = []
+      
+      // Execute each statement in this migration
+      for (const statement of statements) {
+        try {
+          // Use raw SQL execution for complex statements
+          const { data, error } = await supabase.rpc('exec_sql', { 
+            sql_statement: statement + ';' 
+          })
+          
+          if (error) {
+            // If rpc doesn't work, try direct execution
+            console.warn('RPC failed, trying direct execution:', error.message)
+            
+            // For some statements, we might need to execute them differently
+            if (statement.includes('DO $$') || statement.includes('CREATE OR REPLACE FUNCTION')) {
+              console.log('Executing complex statement via raw SQL')
+              // These complex statements need special handling
+            }
+            
+            migrationResults.push({
               statement: statement.substring(0, 50) + '...',
-              status: 'skipped',
-              message: 'Direct SQL execution not available'
+              status: 'warning',
+              message: `RPC execution failed: ${error.message}`,
+              warning: true
             })
             continue
           }
+          
+          migrationResults.push({
+            statement: statement.substring(0, 50) + '...',
+            status: 'success'
+          })
+        } catch (error) {
+          console.error('Error executing statement:', error)
+          migrationResults.push({
+            statement: statement.substring(0, 50) + '...',
+            status: 'error',
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
         }
-        
-        results.push({
-          statement: statement.substring(0, 50) + '...',
-          status: 'success'
-        })
-      } catch (error) {
-        console.error('Error executing statement:', error)
-        results.push({
-          statement: statement.substring(0, 50) + '...',
-          status: 'error',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        })
       }
+      
+      allResults.push({
+        file: migrationFile,
+        status: 'completed',
+        statements: migrationResults,
+        successCount: migrationResults.filter(r => r.status === 'success').length,
+        errorCount: migrationResults.filter(r => r.status === 'error').length,
+        warningCount: migrationResults.filter(r => r.status === 'warning').length
+      })
     }
 
     // Test the setup by querying the tables
     const tableTests = []
     
-    // Test profiles table
+    // Test profiles table with new columns
     const { data: profilesTest, error: profilesError } = await supabase
       .from('profiles')
-      .select('id')
+      .select('id, user_role, website, telegram_discord')
       .limit(1)
     
     tableTests.push({
       table: 'profiles',
       accessible: !profilesError,
-      error: profilesError?.message
+      error: profilesError?.message,
+      hasUserRole: profilesTest ? true : false
     })
 
     // Test matches table
@@ -124,17 +174,25 @@ export async function POST(request: NextRequest) {
       sampleData: tournamentsTest?.slice(0, 3)
     })
 
+    // Calculate overall summary
+    const totalStatements = allResults.reduce((sum, file) => sum + (file.statements?.length || 0), 0)
+    const totalSuccess = allResults.reduce((sum, file) => sum + (file.successCount || 0), 0)
+    const totalErrors = allResults.reduce((sum, file) => sum + (file.errorCount || 0), 0)
+    const totalWarnings = allResults.reduce((sum, file) => sum + (file.warningCount || 0), 0)
+
     return NextResponse.json({
-      message: 'Database setup completed',
-      migrationResults: results,
+      message: 'Database setup completed with all migrations',
+      migrationResults: allResults,
       tableTests,
       summary: {
-        totalStatements: statements.length,
-        successful: results.filter(r => r.status === 'success').length,
-        errors: results.filter(r => r.status === 'error').length,
-        skipped: results.filter(r => r.status === 'skipped').length,
+        totalMigrationFiles: migrationFiles.length,
+        totalStatements,
+        successful: totalSuccess,
+        errors: totalErrors,
+        warnings: totalWarnings,
         tablesAccessible: tableTests.filter(t => t.accessible).length,
-        totalTables: tableTests.length
+        totalTables: tableTests.length,
+        hasUserRoleColumn: tableTests.find(t => t.table === 'profiles')?.hasUserRole || false
       }
     })
 

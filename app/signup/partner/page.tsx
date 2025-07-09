@@ -1,204 +1,553 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Eye, EyeOff, User, Mail, Globe, Twitter, CheckCircle2, MailIcon, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
-import { FileText, Upload, ArrowLeft, Globe, Twitter } from 'lucide-react'
+import { signUp, signInWithTwitter, handleOAuthCallback } from '../../../lib/auth'
+import { useAuth } from '../../../components/providers/AuthProvider'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../../../lib/supabase'
 
-export default function PartnerSignUpPage() {
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      {/* Back Button */}
-      <div className="mb-8">
-        <Link 
-          href="/home"
-          className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back to selection</span>
-        </Link>
-      </div>
+export default function PartnerSignupPage() {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: '',
+    projectName: '',
+    website: '',
+    twitter: '',
+    description: ''
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isTwitterLoading, setIsTwitterLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [showEmailVerification, setShowEmailVerification] = useState(false)
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
+  
+  const { user, refreshUser } = useAuth()
+  const router = useRouter()
 
-      {/* Header Section */}
-      <div className="text-center mb-8">
-        {/* Icon */}
-        <div className="w-24 h-24 bg-gradient-to-r from-gray-700 to-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gray-600">
-          <FileText className="text-purple-400 w-12 h-12" />
+  // Handle OAuth callback on component mount
+  useEffect(() => {
+    const handleTwitterCallback = async () => {
+      const urlParams = new URLSearchParams(window.location.search)
+      const accessToken = urlParams.get('access_token')
+      const refreshToken = urlParams.get('refresh_token')
+      
+      if (accessToken || refreshToken) {
+        console.log('=== TWITTER OAUTH CALLBACK DETECTED ===')
+        setIsTwitterLoading(true)
+        
+        try {
+          const { user: oauthUser, error } = await handleOAuthCallback('partner')
+          
+          if (error) {
+            setError(error)
+            setIsTwitterLoading(false)
+            return
+          }
+
+          if (oauthUser) {
+            setSuccess('Twitter authentication successful! Welcome!')
+            await refreshUser()
+            
+            // Clear URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname)
+            
+            setTimeout(() => {
+              router.push('/profile')
+            }, 2000)
+          }
+        } catch (error) {
+          console.error('Twitter callback error:', error)
+          setError('Failed to complete Twitter authentication')
+        } finally {
+          setIsTwitterLoading(false)
+        }
+      }
+    }
+
+    handleTwitterCallback()
+  }, [refreshUser, router])
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user && !isTwitterLoading) {
+      router.push('/profile')
+    }
+  }, [user, router, isTwitterLoading])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+
+    // Auto-generate username from project name
+    if (name === 'projectName' && value) {
+      const generatedUsername = value
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '_')
+        .substring(0, 20)
+      
+      setFormData(prev => ({
+        ...prev,
+        username: generatedUsername
+      }))
+    }
+  }
+
+  const handleTwitterSignIn = async () => {
+    console.log('=== TWITTER SIGN IN STARTED ===')
+    setIsTwitterLoading(true)
+    setError('')
+    
+    try {
+      const { error } = await signInWithTwitter('/signup/partner')
+      
+      if (error) {
+        setError(error)
+        setIsTwitterLoading(false)
+      }
+      // If successful, user will be redirected to Twitter, then back to this page
+    } catch (error) {
+      console.error('Twitter sign in error:', error)
+      setError('Failed to initiate Twitter authentication')
+      setIsTwitterLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    setIsResendingEmail(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email
+      })
+
+      if (error) {
+        setError(`Failed to resend verification email: ${error.message}`)
+      } else {
+        setSuccess('Verification email sent! Please check your inbox.')
+      }
+    } catch (error) {
+      setError('Failed to resend verification email. Please try again.')
+    } finally {
+      setIsResendingEmail(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    console.log('=== FORM SUBMISSION STARTED ===')
+    setIsLoading(true)
+    setError('')
+    setSuccess('')
+
+    // Validation
+    if (!formData.fullName || !formData.email || !formData.username || !formData.password || !formData.projectName) {
+      setError('Please fill in all required fields')
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      console.log('Attempting to sign up partner:', { 
+        email: formData.email, 
+        username: formData.username,
+        fullName: formData.fullName,
+        projectName: formData.projectName
+      })
+
+      const { user: newUser, error } = await signUp(
+        formData.email, 
+        formData.password, 
+        formData.username,
+        formData.fullName,
+        'partner'
+      )
+
+      console.log('Signup result:', { user: newUser, error })
+
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return
+      }
+
+      if (newUser) {
+        setSuccess('Partner account created successfully!')
+        setShowEmailVerification(true)
+        
+        // Don't redirect immediately, show email verification message
+        setTimeout(async () => {
+          await refreshUser()
+        }, 1000)
+      }
+    } catch (error) {
+      console.error('Signup error:', error)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  if (isTwitterLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-white text-lg">Completing Twitter authentication...</p>
         </div>
-
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          Partner Sign Up
-        </h1>
-        <p className="text-purple-200 text-lg leading-relaxed">
-          Join as a partner to sponsor AI agents and create your own competitions
-        </p>
       </div>
+    )
+  }
 
-      {/* Sign Up Form */}
-      <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-md rounded-2xl p-8 border border-white/10 mb-6">
-        <form className="space-y-6">
-          {/* Project Name */}
-          <div>
-            <label htmlFor="projectName" className="block text-purple-400 font-medium mb-2">
-              Project Name <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              id="projectName"
-              name="projectName"
-              placeholder="Enter your project name"
-              className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
-            />
+  // Show email verification screen after successful signup
+  if (showEmailVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 text-center">
+            <div className="mb-6">
+              <MailIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Check Your Email!</h2>
+              <p className="text-purple-200">
+                We've sent a verification link to:
+              </p>
+              <p className="text-white font-semibold mt-2">{formData.email}</p>
+            </div>
+
+            <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50 rounded-lg p-4 mb-6">
+              <p className="text-purple-200 text-sm">
+                🚀 <strong>Partner Benefits:</strong> Access to API, revenue sharing, and premium support!
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm flex items-center gap-2">
+                <CheckCircle2 size={16} />
+                {success}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="text-purple-300 text-sm space-y-2">
+                <p>📧 <strong>Click the verification link</strong> in your email to activate your account.</p>
+                <p>⏰ The link will expire in 24 hours.</p>
+                <p>📱 Check your spam folder if you don't see it.</p>
+              </div>
+
+              <button
+                onClick={handleResendVerification}
+                disabled={isResendingEmail}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResendingEmail ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={20} />
+                    Resend Verification Email
+                  </>
+                )}
+              </button>
+
+              <Link 
+                href="/login"
+                className="block w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-xl font-semibold text-center transition-all"
+              >
+                Go to Login Page
+              </Link>
+            </div>
+
+            <div className="text-center mt-6">
+              <p className="text-purple-300 text-xs">
+                Already verified? <Link href="/login" className="text-blue-400 hover:text-blue-300 underline">Sign in here</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="max-w-lg w-full">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">Partner Signup</h2>
+            <p className="text-purple-200">Join as an AI Chess Arena Partner</p>
           </div>
 
-          {/* Email Address */}
-          <div>
-            <label htmlFor="email" className="block text-purple-400 font-medium mb-2">
-              Email Address <span className="text-red-400">*</span>
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                placeholder="partner@example.com"
-                className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 pl-10 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
-              />
+          {/* Twitter Sign In */}
+          <div className="mb-6">
+            <button
+              onClick={handleTwitterSignIn}
+              disabled={isTwitterLoading}
+              className="w-full bg-[#1DA1F2] hover:bg-[#1a8cd8] text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-3 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isTwitterLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                <>
+                  <Twitter size={20} />
+                  Continue with Twitter
+                </>
+              )}
+            </button>
+            
+            <div className="text-center my-4">
+              <span className="text-purple-300 bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 px-3">or</span>
             </div>
           </div>
 
-          {/* Password Fields */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/50 rounded-lg p-4 mb-6">
+            <p className="text-purple-200 text-sm text-center">
+              🚀 <strong>Partner Benefits:</strong> API access, revenue sharing, and premium support!
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+            {/* Full Name */}
             <div>
-              <label htmlFor="password" className="block text-purple-400 font-medium mb-2">
-                Password <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Full Name *
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
                 <input
-                  type="password"
-                  id="password"
-                  name="password"
-                  placeholder="••••••••"
-                  className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 pl-10 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your full name"
+                  autoComplete="name"
                 />
               </div>
             </div>
 
+            {/* Project Name */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-purple-400 font-medium mb-2">
-                Confirm Password <span className="text-red-400">*</span>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Project/Company Name *
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                </div>
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
                 <input
-                  type="password"
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  placeholder="••••••••"
-                  className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 pl-10 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
+                  type="text"
+                  name="projectName"
+                  value={formData.projectName}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your project/company name"
                 />
               </div>
             </div>
-          </div>
 
-          {/* Project Logo Upload */}
-          <div>
-            <label className="block text-purple-400 font-medium mb-2">
-              Project Logo
-            </label>
-            <div className="border-2 border-dashed border-gray-600 rounded-xl p-8 text-center hover:border-purple-400 transition-colors cursor-pointer">
-              <Upload className="w-12 h-12 text-purple-400 mx-auto mb-4" />
-              <p className="text-gray-300 mb-2">Click to upload or drag and drop</p>
-              <p className="text-gray-500 text-sm">PNG, JPG up to 2MB</p>
-              <input type="file" className="hidden" accept="image/*" />
-            </div>
-          </div>
-
-          {/* Website and Twitter */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Email */}
             <div>
-              <label htmlFor="website" className="block text-purple-400 font-medium mb-2">
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Email *
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Username *
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Auto-generated from project name"
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+
+            {/* Website */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
                 Website
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Globe className="w-5 h-5 text-gray-400" />
-                </div>
+                <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
                 <input
                   type="url"
-                  id="website"
                   name="website"
+                  value={formData.website}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   placeholder="https://yourproject.com"
-                  className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 pl-10 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
                 />
               </div>
             </div>
 
+            {/* Twitter Handle */}
             <div>
-              <label htmlFor="twitter" className="block text-purple-400 font-medium mb-2">
-                Twitter/X Handle
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Twitter Handle
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Twitter className="w-5 h-5 text-gray-400" />
-                </div>
+                <Twitter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
                 <input
                   type="text"
-                  id="twitter"
                   name="twitter"
-                  placeholder="@yourproject"
-                  className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 pl-10 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
+                  value={formData.twitter}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="@yourhandle"
                 />
               </div>
             </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Project Description
+              </label>
+              <textarea
+                name="description"
+                value={formData.description}
+                onChange={handleInputChange}
+                rows={3}
+                className="w-full bg-white/5 border border-white/20 rounded-xl py-3 px-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                placeholder="Tell us about your project..."
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Password *
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-4 pr-12 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Create a password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-400 hover:text-purple-300"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Confirm Password *
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-4 pr-12 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Confirm your password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-400 hover:text-purple-300"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating Account...' : 'Create Partner Account'}
+            </button>
+          </form>
+
+          <div className="text-center mt-6">
+            <p className="text-purple-200">
+              Already have an account?{' '}
+              <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
+                Sign in here
+              </Link>
+            </p>
           </div>
-
-          {/* Project Description */}
-          <div>
-            <label htmlFor="description" className="block text-purple-400 font-medium mb-2">
-              Project Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              rows={4}
-              placeholder="Tell us about your project and how you plan to use AI Chess Arena..."
-              className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors resize-none"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-hover"
-          >
-            <FileText className="w-5 h-5" />
-            Sign Up as Partner
-          </button>
-        </form>
-      </div>
-
-      {/* Login Link */}
-      <div className="text-center">
-        <p className="text-purple-300">
-          Already have a partner account?{' '}
-          <Link 
-            href="/login" 
-            className="text-purple-400 hover:text-purple-300 font-semibold transition-colors underline"
-          >
-            Log in here
-          </Link>
-        </p>
+        </div>
       </div>
     </div>
   )

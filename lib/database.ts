@@ -10,13 +10,41 @@ type Tournament = Tables['tournaments']['Row']
 // Profile operations
 export const profileService = {
   async create(profile: Tables['profiles']['Insert']) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert(profile)
-      .select()
-      .single()
+    try {
+      // First try with service role client to bypass RLS
+      const serverSupabase = createServerClient()
+      
+      const { data, error } = await serverSupabase
+        .from('profiles')
+        .insert(profile)
+        .select()
+        .single()
+      
+      if (!error) {
+        return { data, error }
+      }
+      
+      console.log('Service role creation failed, trying with regular client:', error.message)
+    } catch (serviceError) {
+      console.log('Service role client failed, falling back to regular client')
+    }
     
-    return { data, error }
+    // Fallback to regular client (should work if RLS policies are correct)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert(profile)
+        .select()
+        .single()
+      
+      return { data, error }
+    } catch (fallbackError) {
+      console.error('Both service role and regular client failed')
+      return { 
+        data: null, 
+        error: fallbackError instanceof Error ? fallbackError : new Error('Failed to create profile')
+      }
+    }
   },
 
   async getByEmail(email: string) {
@@ -43,6 +71,17 @@ export const profileService = {
     const { data, error } = await supabase
       .from('profiles')
       .update(stats)
+      .eq('id', userId)
+      .select()
+      .single()
+    
+    return { data, error }
+  },
+
+  async update(userId: string, updates: Partial<Tables['profiles']['Update']>) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
       .eq('id', userId)
       .select()
       .single()

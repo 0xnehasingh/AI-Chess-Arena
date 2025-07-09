@@ -1,123 +1,408 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { Eye, EyeOff, User, Mail, CheckCircle2, MailIcon, RefreshCw } from 'lucide-react'
 import Link from 'next/link'
-import { Users, Gift, ArrowLeft } from 'lucide-react'
+import { signUp, checkUsernameAvailability } from '../../../lib/auth'
+import { useAuth } from '../../../components/providers/AuthProvider'
+import { useRouter } from 'next/navigation'
+import { supabase } from '../../../lib/supabase'
 
-export default function PlayerSignUpPage() {
+export default function PlayerSignupPage() {
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    username: '',
+    password: '',
+    confirmPassword: ''
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [showEmailVerification, setShowEmailVerification] = useState(false)
+  const [isResendingEmail, setIsResendingEmail] = useState(false)
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null)
+  const [checkingUsername, setCheckingUsername] = useState(false)
+  
+  const { user, refreshUser } = useAuth()
+  const router = useRouter()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (user) {
+      router.push('/profile')
+    }
+  }, [user, router])
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  // Check username availability when username changes
+  useEffect(() => {
+    const checkUsername = async () => {
+      if (formData.username.length >= 3) {
+        setCheckingUsername(true)
+        const { available } = await checkUsernameAvailability(formData.username)
+        setUsernameAvailable(available)
+        setCheckingUsername(false)
+      } else {
+        setUsernameAvailable(null)
+      }
+    }
+
+    const debounceTimer = setTimeout(checkUsername, 500)
+    return () => clearTimeout(debounceTimer)
+  }, [formData.username])
+
+  const handleResendVerification = async () => {
+    setIsResendingEmail(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email
+      })
+
+      if (error) {
+        setError(`Failed to resend verification email: ${error.message}`)
+      } else {
+        setSuccess('Verification email sent! Please check your inbox.')
+      }
+    } catch (error) {
+      setError('Failed to resend verification email. Please try again.')
+    } finally {
+      setIsResendingEmail(false)
+    }
+  }
+
+  const handleSubmit = async () => {
+    console.log('=== PLAYER FORM SUBMISSION STARTED ===')
+    setIsLoading(true)
+    setError('')
+    setSuccess('')
+
+    // Validation
+    if (!formData.fullName || !formData.email || !formData.username || !formData.password) {
+      setError('Please fill in all fields')
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError('Passwords do not match')
+      setIsLoading(false)
+      return
+    }
+
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long')
+      setIsLoading(false)
+      return
+    }
+
+    if (usernameAvailable === false) {
+      setError('Username is already taken. Please choose a different username.')
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      console.log('Attempting to sign up player:', { 
+        email: formData.email, 
+        username: formData.username,
+        fullName: formData.fullName
+      })
+
+      const { user: newUser, error } = await signUp(
+        formData.email, 
+        formData.password, 
+        formData.username,
+        formData.fullName,
+        'player'
+      )
+
+      console.log('Signup result:', { user: newUser, error })
+
+      if (error) {
+        setError(error)
+        setIsLoading(false)
+        return
+      }
+
+      if (newUser) {
+        setSuccess('Account created successfully!')
+        setShowEmailVerification(true)
+        
+        // Don't redirect immediately, show email verification message
+        setTimeout(async () => {
+          await refreshUser()
+        }, 1000)
+      }
+    } catch (error) {
+      console.error('Signup error:', error)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Show email verification screen after successful signup
+  if (showEmailVerification) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 text-center">
+            <div className="mb-6">
+              <MailIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-white mb-2">Check Your Email!</h2>
+              <p className="text-purple-200">
+                We've sent a verification link to:
+              </p>
+              <p className="text-white font-semibold mt-2">{formData.email}</p>
+            </div>
+
+            <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
+              <p className="text-blue-200 text-sm">
+                🎁 <strong>Welcome Bonus:</strong> 100 free betting tickets waiting for you after verification!
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+                {error}
+              </div>
+            )}
+
+            {success && (
+              <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm flex items-center gap-2">
+                <CheckCircle2 size={16} />
+                {success}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="text-purple-300 text-sm space-y-2">
+                <p>📧 <strong>Click the verification link</strong> in your email to activate your account.</p>
+                <p>⏰ The link will expire in 24 hours.</p>
+                <p>📱 Check your spam folder if you don't see it.</p>
+              </div>
+
+              <button
+                onClick={handleResendVerification}
+                disabled={isResendingEmail}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isResendingEmail ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={20} />
+                    Resend Verification Email
+                  </>
+                )}
+              </button>
+
+              <Link 
+                href="/login"
+                className="block w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-4 rounded-xl font-semibold text-center transition-all"
+              >
+                Go to Login Page
+              </Link>
+            </div>
+
+            <div className="text-center mt-6">
+              <p className="text-purple-300 text-xs">
+                Already verified? <Link href="/login" className="text-blue-400 hover:text-blue-300 underline">Sign in here</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-md">
-      {/* Back Button */}
-      <div className="mb-8">
-        <Link 
-          href="/home"
-          className="flex items-center gap-2 text-purple-300 hover:text-purple-200 transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          <span>Back to selection</span>
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">Player Signup</h2>
+            <p className="text-purple-200">Join the AI Chess Arena</p>
+          </div>
 
-      {/* Header Section */}
-      <div className="text-center mb-8">
-        {/* Icon */}
-        <div className="w-24 h-24 bg-gradient-to-r from-gray-700 to-gray-800 rounded-3xl flex items-center justify-center mx-auto mb-6 border border-gray-600">
-          <Users className="text-purple-400 w-12 h-12" />
+          <div className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-4 mb-6">
+            <p className="text-blue-200 text-sm text-center">
+              🎁 <strong>Welcome Bonus:</strong> Get 100 free betting tickets upon signup!
+            </p>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-lg text-red-200 text-sm">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mb-4 p-3 bg-green-500/20 border border-green-500/50 rounded-lg text-green-200 text-sm flex items-center gap-2">
+              <CheckCircle2 size={16} />
+              {success}
+            </div>
+          )}
+
+          <form onSubmit={(e) => e.preventDefault()} className="space-y-6">
+            {/* Full Name */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
+                <input
+                  type="text"
+                  name="fullName"
+                  value={formData.fullName}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your full name"
+                  autoComplete="name"
+                />
+              </div>
+            </div>
+
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Email
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
+                <input
+                  type="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Enter your email"
+                  autoComplete="email"
+                />
+              </div>
+            </div>
+
+            {/* Username */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-purple-400" size={20} />
+                <input
+                  type="text"
+                  name="username"
+                  value={formData.username}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-10 pr-4 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Choose a username"
+                  autoComplete="username"
+                />
+                {/* Username availability indicator */}
+                {formData.username.length >= 3 && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    {checkingUsername ? (
+                      <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin"></div>
+                    ) : usernameAvailable === true ? (
+                      <CheckCircle2 className="text-green-400" size={20} />
+                    ) : usernameAvailable === false ? (
+                      <div className="w-4 h-4 bg-red-400 rounded-full"></div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+              {formData.username.length >= 3 && usernameAvailable === false && (
+                <p className="text-red-400 text-sm mt-1">Username is already taken</p>
+              )}
+              {formData.username.length >= 3 && usernameAvailable === true && (
+                <p className="text-green-400 text-sm mt-1">Username is available</p>
+              )}
+            </div>
+
+            {/* Password */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-4 pr-12 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Create a password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-400 hover:text-purple-300"
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label className="block text-sm font-medium text-purple-200 mb-2">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleInputChange}
+                  className="w-full bg-white/5 border border-white/20 rounded-xl py-3 pl-4 pr-12 text-white placeholder-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="Confirm your password"
+                  autoComplete="new-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-purple-400 hover:text-purple-300"
+                >
+                  {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white py-3 px-4 rounded-xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Creating Account...' : 'Create Player Account'}
+            </button>
+          </form>
+
+          <div className="text-center mt-6">
+            <p className="text-purple-200">
+              Already have an account?{' '}
+              <Link href="/login" className="text-blue-400 hover:text-blue-300 font-medium">
+                Sign in here
+              </Link>
+            </p>
+          </div>
         </div>
-
-        <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
-          Join as a Player
-        </h1>
-        <p className="text-purple-200 text-lg leading-relaxed">
-          Create your account and start predicting AI chess matches to win amazing prizes.
-        </p>
-      </div>
-
-      {/* Welcome Bonus Section */}
-      <div className="bg-gradient-to-r from-gray-800/80 to-gray-900/80 backdrop-blur-md rounded-2xl p-6 border border-white/10 mb-8">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Gift className="text-purple-400 w-6 h-6" />
-            <h2 className="text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Welcome Bonus</h2>
-          </div>
-          
-          <div className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent mb-2">
-            100 Free Tickets
-          </div>
-          
-          <p className="text-purple-200">
-            Get started with 100 free tickets to bet on your favorite AI agents!
-          </p>
-        </div>
-      </div>
-
-      {/* Sign Up Form */}
-      <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-md rounded-2xl p-8 border border-white/10 mb-6">
-        <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent text-center mb-8">
-          Create Your Account
-        </h2>
-
-        <form className="space-y-6">
-          {/* Full Name */}
-          <div>
-            <label htmlFor="fullName" className="block text-purple-400 font-medium mb-2">
-              Full Name
-            </label>
-            <input
-              type="text"
-              id="fullName"
-              name="fullName"
-              placeholder="Enter your full name"
-              className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
-            />
-          </div>
-
-          {/* Email */}
-          <div>
-            <label htmlFor="email" className="block text-purple-400 font-medium mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="Enter your email"
-              className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
-            />
-          </div>
-
-          {/* Password */}
-          <div>
-            <label htmlFor="password" className="block text-purple-400 font-medium mb-2">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              placeholder="Create a password"
-              className="w-full bg-gray-900/80 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-purple-400 focus:ring-1 focus:ring-purple-400 transition-colors"
-            />
-          </div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-hover"
-          >
-            Create Account & Get Free Tickets
-          </button>
-        </form>
-      </div>
-
-      {/* Login Link */}
-      <div className="text-center">
-        <p className="text-purple-300">
-          Already have an account?{' '}
-          <Link 
-            href="/login" 
-            className="text-purple-400 hover:text-purple-300 font-semibold transition-colors underline"
-          >
-            Sign in here
-          </Link>
-        </p>
       </div>
     </div>
   )
