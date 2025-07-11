@@ -162,6 +162,10 @@ export interface Database {
           status: 'pending' | 'won' | 'lost' | 'cancelled'
           payout_amount: number | null
           transaction_hash: string | null
+          is_voucher_bet: boolean
+          registration_id: string | null
+          voucher_amount: number
+          voucher_payout: number
           created_at: string
           updated_at: string
         }
@@ -175,6 +179,10 @@ export interface Database {
           status?: 'pending' | 'won' | 'lost' | 'cancelled'
           payout_amount?: number | null
           transaction_hash?: string | null
+          is_voucher_bet?: boolean
+          registration_id?: string | null
+          voucher_amount?: number
+          voucher_payout?: number
           created_at?: string
           updated_at?: string
         }
@@ -188,6 +196,10 @@ export interface Database {
           status?: 'pending' | 'won' | 'lost' | 'cancelled'
           payout_amount?: number | null
           transaction_hash?: string | null
+          is_voucher_bet?: boolean
+          registration_id?: string | null
+          voucher_amount?: number
+          voucher_payout?: number
           created_at?: string
           updated_at?: string
         }
@@ -262,6 +274,150 @@ export interface Database {
           position_after?: string
           thinking_time?: number | null
           evaluation?: number | null
+          created_at?: string
+        }
+      }
+      tournament_registrations: {
+        Row: {
+          id: string
+          user_id: string
+          tournament_id: string
+          registered_at: string
+          voucher_balance: number
+          total_vouchers_earned: number
+          total_vouchers_spent: number
+          registration_status: 'active' | 'withdrawn' | 'banned'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tournament_id: string
+          registered_at?: string
+          voucher_balance?: number
+          total_vouchers_earned?: number
+          total_vouchers_spent?: number
+          registration_status?: 'active' | 'withdrawn' | 'banned'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tournament_id?: string
+          registered_at?: string
+          voucher_balance?: number
+          total_vouchers_earned?: number
+          total_vouchers_spent?: number
+          registration_status?: 'active' | 'withdrawn' | 'banned'
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      tournament_voucher_types: {
+        Row: {
+          id: string
+          tournament_id: string
+          voucher_name: string
+          voucher_symbol: string
+          voucher_description: string | null
+          initial_allocation: number
+          max_voucher_balance: number
+          min_bet_amount: number
+          max_bet_amount: number
+          earn_on_registration: number
+          earn_on_referral: number
+          earn_on_daily_login: number
+          earn_on_match_participation: number
+          vouchers_expire: boolean
+          expiry_duration_days: number | null
+          transferable: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          tournament_id: string
+          voucher_name: string
+          voucher_symbol: string
+          voucher_description?: string | null
+          initial_allocation?: number
+          max_voucher_balance?: number
+          min_bet_amount?: number
+          max_bet_amount?: number
+          earn_on_registration?: number
+          earn_on_referral?: number
+          earn_on_daily_login?: number
+          earn_on_match_participation?: number
+          vouchers_expire?: boolean
+          expiry_duration_days?: number | null
+          transferable?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          tournament_id?: string
+          voucher_name?: string
+          voucher_symbol?: string
+          voucher_description?: string | null
+          initial_allocation?: number
+          max_voucher_balance?: number
+          min_bet_amount?: number
+          max_bet_amount?: number
+          earn_on_registration?: number
+          earn_on_referral?: number
+          earn_on_daily_login?: number
+          earn_on_match_participation?: number
+          vouchers_expire?: boolean
+          expiry_duration_days?: number | null
+          transferable?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      voucher_transactions: {
+        Row: {
+          id: string
+          user_id: string
+          tournament_id: string
+          registration_id: string
+          transaction_type: 'earned' | 'spent' | 'expired' | 'refunded'
+          amount: number
+          balance_before: number
+          balance_after: number
+          source: string
+          reference_id: string | null
+          description: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          tournament_id: string
+          registration_id: string
+          transaction_type: 'earned' | 'spent' | 'expired' | 'refunded'
+          amount: number
+          balance_before: number
+          balance_after: number
+          source: string
+          reference_id?: string | null
+          description?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          tournament_id?: string
+          registration_id?: string
+          transaction_type?: 'earned' | 'spent' | 'expired' | 'refunded'
+          amount?: number
+          balance_before?: number
+          balance_after?: number
+          source?: string
+          reference_id?: string | null
+          description?: string | null
           created_at?: string
         }
       }

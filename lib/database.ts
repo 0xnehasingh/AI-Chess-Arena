@@ -220,7 +220,8 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*)
+        matches (*),
+        tournament_voucher_types (*)
       `)
       .order('start_date', { ascending: true })
     
@@ -232,7 +233,8 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*)
+        matches (*),
+        tournament_voucher_types (*)
       `)
       .eq('status', 'active')
       .order('start_date', { ascending: true })
@@ -245,9 +247,110 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*)
+        matches (*),
+        tournament_voucher_types (*)
       `)
       .eq('id', id)
+      .single()
+    
+    return { data, error }
+  }
+}
+
+// Tournament Registration operations
+export const tournamentRegistrationService = {
+  async register(tournamentId: string) {
+    const { data, error } = await fetch('/api/tournament-registration', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({ tournament_id: tournamentId })
+    }).then(res => res.json())
+    
+    return { data, error: error ? new Error(error) : null }
+  },
+
+  async getUserRegistrations() {
+    const { data, error } = await fetch('/api/tournament-registration', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      }
+    }).then(res => res.json())
+    
+    return { data: data?.registrations, error: error ? new Error(error) : null }
+  },
+
+  async getRegistrationForTournament(tournamentId: string) {
+    const { data, error } = await fetch(`/api/tournament-registration?tournament_id=${tournamentId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      }
+    }).then(res => res.json())
+    
+    return { data: data?.registrations?.[0], error: error ? new Error(error) : null }
+  }
+}
+
+// Voucher betting operations
+export const voucherBetService = {
+  async placeBet(matchId: string, champion: 'ChatGPT' | 'Claude', voucherAmount: number) {
+    const { data, error } = await fetch('/api/voucher-bet', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      },
+      body: JSON.stringify({
+        match_id: matchId,
+        champion,
+        voucher_amount: voucherAmount
+      })
+    }).then(res => res.json())
+    
+    return { data, error: error ? new Error(error) : null }
+  },
+
+  async getUserVoucherBets(tournamentId?: string) {
+    const url = tournamentId 
+      ? `/api/voucher-bet?tournament_id=${tournamentId}`
+      : '/api/voucher-bet'
+      
+    const { data, error } = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+      }
+    }).then(res => res.json())
+    
+    return { data: data?.voucher_bets, error: error ? new Error(error) : null }
+  }
+}
+
+// Voucher transaction operations
+export const voucherService = {
+  async getUserVoucherTransactions(tournamentId: string) {
+    const { data, error } = await supabase
+      .from('voucher_transactions')
+      .select(`
+        *,
+        tournaments (name, voucher_name)
+      `)
+      .eq('tournament_id', tournamentId)
+      .order('created_at', { ascending: false })
+    
+    return { data, error }
+  },
+
+  async getUserVoucherBalance(tournamentId: string) {
+    const { data, error } = await supabase
+      .from('tournament_registrations')
+      .select('voucher_balance, tournament_voucher_types!tournament_voucher_types_tournament_id_fkey(voucher_symbol)')
+      .eq('tournament_id', tournamentId)
+      .eq('registration_status', 'active')
       .single()
     
     return { data, error }
