@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { profileService } from '../../../lib/database'
+import { createServerClient } from '@/lib/database'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,31 +12,16 @@ export async function POST(request: NextRequest) {
     
     // Get the authorization header
     const authHeader = request.headers.get('authorization')
-    if (!authHeader) {
+    if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'No authorization header' }, { status: 401 })
     }
 
     // Extract token
-    const token = authHeader.replace('Bearer ', '')
+    const token = authHeader.substring(7)
     
-    // Create Supabase client with the user's token
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    
-    if (!supabaseUrl || !supabaseAnonKey) {
-      return NextResponse.json({ error: 'Missing Supabase configuration' }, { status: 500 })
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }
-    })
-
-    // Get the current user
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    // Create server client and get user
+    const supabase = createServerClient()
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token)
     
     if (userError || !user) {
       console.error('Failed to get user:', userError)
@@ -47,7 +31,11 @@ export async function POST(request: NextRequest) {
     console.log('User found:', user.id)
 
     // Check if profile already exists
-    const { data: existingProfile, error: existingError } = await profileService.getById(user.id)
+    const { data: existingProfile, error: existingError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
     
     if (existingProfile && !existingError) {
       console.log('Profile already exists')
@@ -76,7 +64,7 @@ export async function POST(request: NextRequest) {
       finalUsername = email.split('@')[0].replace(/[^a-zA-Z0-9_]/g, '').toLowerCase()
     }
 
-    // Ensure username is unique
+    // Ensure username is unique by checking existing usernames
     let counter = 1
     let testUsername = finalUsername
     while (true) {
@@ -92,15 +80,7 @@ export async function POST(request: NextRequest) {
     }
     finalUsername = testUsername
 
-    console.log('Creating profile with data:', {
-      id: user.id,
-      email,
-      username: finalUsername,
-      display_name: displayName
-    })
-
-    // Create the missing profile
-    const { data: newProfile, error: createError } = await profileService.create({
+    const profileData = {
       id: user.id,
       email,
       username: finalUsername,
@@ -111,7 +91,20 @@ export async function POST(request: NextRequest) {
       total_bets: 0,
       win_rate: 0,
       user_role: userRole,
-    })
+      tickets_balance: 100, // Welcome tickets
+      vouchers_balance: 0,
+      total_tickets_earned: 100,
+      total_tickets_spent: 0,
+    }
+
+    console.log('Creating profile with data:', profileData)
+
+    // Create the profile
+    const { data: newProfile, error: createError } = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single()
 
     if (createError) {
       console.error('Failed to create profile:', createError)
@@ -127,10 +120,10 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error('Create missing profile error:', error)
-    return NextResponse.json({ 
-      error: 'An unexpected error occurred', 
-      details: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+    console.error('Create profile error:', error)
+    return NextResponse.json(
+      { error: 'An unexpected error occurred while creating profile' },
+      { status: 500 }
+    )
   }
 } 

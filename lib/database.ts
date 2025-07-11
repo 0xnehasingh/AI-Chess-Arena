@@ -1,6 +1,9 @@
 import { supabase, createServerClient } from './supabase'
 import type { Database } from './supabase'
 
+// Re-export for use in API routes
+export { createServerClient }
+
 type Tables = Database['public']['Tables']
 type Profile = Tables['profiles']['Row']
 type Match = Tables['matches']['Row']
@@ -78,6 +81,113 @@ export const profileService = {
     return { data, error }
   },
 
+  async updateTicketBalance(userId: string, tickets: Partial<Pick<Profile, 'tickets_balance' | 'vouchers_balance' | 'total_tickets_earned' | 'total_tickets_spent'>>) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(tickets)
+      .eq('id', userId)
+      .select()
+      .single()
+    
+    return { data, error }
+  },
+
+  async deductTickets(userId: string, amount: number): Promise<{ success: boolean; error: string | null; newBalance?: number }> {
+    try {
+      // Get current balance
+      const { data: profile, error: getError } = await supabase
+        .from('profiles')
+        .select('tickets_balance, total_tickets_spent')
+        .eq('id', userId)
+        .single()
+
+      if (getError || !profile) {
+        return { success: false, error: 'Failed to get user profile' }
+      }
+
+      if (profile.tickets_balance < amount) {
+        return { success: false, error: `Insufficient tickets. You have ${profile.tickets_balance} tickets but need ${amount}` }
+      }
+
+      // Deduct tickets and update spent total
+      const newBalance = profile.tickets_balance - amount
+      const newTotalSpent = (profile.total_tickets_spent || 0) + amount
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ 
+          tickets_balance: newBalance,
+          total_tickets_spent: newTotalSpent
+        })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+
+      return { success: true, error: null, newBalance }
+    } catch (error) {
+      return { success: false, error: 'Unexpected error during ticket deduction' }
+    }
+  },
+
+  async addTickets(userId: string, amount: number, reason: 'signup_bonus' | 'winnings' | 'purchase' | 'admin' = 'admin'): Promise<{ success: boolean; error: string | null; newBalance?: number }> {
+    try {
+      // Get current balance
+      const { data: profile, error: getError } = await supabase
+        .from('profiles')
+        .select('tickets_balance, total_tickets_earned')
+        .eq('id', userId)
+        .single()
+
+      if (getError || !profile) {
+        return { success: false, error: 'Failed to get user profile' }
+      }
+
+      // Add tickets and update earned total
+      const newBalance = (profile.tickets_balance || 0) + amount
+      const newTotalEarned = (profile.total_tickets_earned || 0) + amount
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .update({ 
+          tickets_balance: newBalance,
+          total_tickets_earned: newTotalEarned
+        })
+        .eq('id', userId)
+        .select()
+        .single()
+
+      if (error) {
+        return { success: false, error: error.message }
+      }
+
+      return { success: true, error: null, newBalance }
+    } catch (error) {
+      return { success: false, error: 'Unexpected error during ticket addition' }
+    }
+  },
+
+  async getTicketBalance(userId: string): Promise<{ balance: number; error: string | null }> {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('tickets_balance')
+        .eq('id', userId)
+        .single()
+
+      if (error || !profile) {
+        return { balance: 0, error: 'Failed to get ticket balance' }
+      }
+
+      return { balance: profile.tickets_balance || 0, error: null }
+    } catch (error) {
+      return { balance: 0, error: 'Unexpected error getting ticket balance' }
+    }
+  },
+
   async update(userId: string, updates: Partial<Tables['profiles']['Update']>) {
     const { data, error } = await supabase
       .from('profiles')
@@ -93,7 +203,8 @@ export const profileService = {
 // Match operations
 export const matchService = {
   async getUpcoming() {
-    const { data, error } = await supabase
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
       .from('matches')
       .select(`
         *,
@@ -106,7 +217,8 @@ export const matchService = {
   },
 
   async getLive() {
-    const { data, error } = await supabase
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
       .from('matches')
       .select(`
         *,
@@ -120,7 +232,8 @@ export const matchService = {
   },
 
   async getById(id: string) {
-    const { data, error } = await supabase
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
       .from('matches')
       .select(`
         *,
@@ -138,7 +251,8 @@ export const matchService = {
     if (winner) updateData.winner = winner
     if (status === 'finished') updateData.end_time = new Date().toISOString()
 
-    const { data, error } = await supabase
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
       .from('matches')
       .update(updateData)
       .eq('id', id)
@@ -149,11 +263,41 @@ export const matchService = {
   },
 
   async addMove(move: Tables['match_moves']['Insert']) {
-    const { data, error } = await supabase
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
       .from('match_moves')
       .insert(move)
       .select()
       .single()
+    
+    return { data, error }
+  },
+
+  async getFinished() {
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
+      .from('matches')
+      .select(`
+        *,
+        tournaments (*),
+        match_moves (*)
+      `)
+      .eq('status', 'finished')
+      .order('created_at', { ascending: false })
+    
+    return { data, error }
+  },
+
+  async getAll() {
+    const serverSupabase = createServerClient()
+    const { data, error } = await serverSupabase
+      .from('matches')
+      .select(`
+        *,
+        tournaments (*),
+        match_moves (*)
+      `)
+      .order('start_time', { ascending: false })
     
     return { data, error }
   }
@@ -161,16 +305,55 @@ export const matchService = {
 
 // Betting operations
 export const betService = {
-  async placeBet(bet: Tables['bets']['Insert']) {
-    const serverSupabase = createServerClient()
-    
-    const { data, error } = await serverSupabase
-      .from('bets')
-      .insert(bet)
-      .select()
-      .single()
-    
-    return { data, error }
+  async placeBet(bet: Tables['bets']['Insert']): Promise<{ success: boolean; data?: any; error: string | null; remainingTickets?: number }> {
+    try {
+      // First check if user has enough tickets
+      const { balance, error: balanceError } = await profileService.getTicketBalance(bet.user_id)
+      
+      if (balanceError) {
+        return { success: false, error: balanceError }
+      }
+      
+      if (balance < bet.amount) {
+        return { 
+          success: false, 
+          error: `Insufficient tickets. You have ${balance} tickets but need ${bet.amount}` 
+        }
+      }
+      
+      // Deduct tickets from user balance
+      const { success: deductSuccess, error: deductError, newBalance } = await profileService.deductTickets(bet.user_id, bet.amount)
+      
+      if (!deductSuccess) {
+        return { success: false, error: deductError }
+      }
+      
+      // Place the bet
+      const serverSupabase = createServerClient()
+      const { data, error } = await serverSupabase
+        .from('bets')
+        .insert(bet)
+        .select()
+        .single()
+      
+      if (error) {
+        // If bet placement fails, restore the tickets
+        await profileService.addTickets(bet.user_id, bet.amount, 'admin')
+        return { success: false, error: error.message }
+      }
+      
+      return { 
+        success: true, 
+        data, 
+        error: null, 
+        remainingTickets: newBalance 
+      }
+    } catch (error) {
+      return { 
+        success: false, 
+        error: 'An unexpected error occurred while placing the bet' 
+      }
+    }
   },
 
   async getUserBets(userId: string) {
@@ -220,8 +403,7 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*),
-        tournament_voucher_types (*)
+        matches (*)
       `)
       .order('start_date', { ascending: true })
     
@@ -233,8 +415,7 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*),
-        tournament_voucher_types (*)
+        matches (*)
       `)
       .eq('status', 'active')
       .order('start_date', { ascending: true })
@@ -247,110 +428,9 @@ export const tournamentService = {
       .from('tournaments')
       .select(`
         *,
-        matches (*),
-        tournament_voucher_types (*)
+        matches (*)
       `)
       .eq('id', id)
-      .single()
-    
-    return { data, error }
-  }
-}
-
-// Tournament Registration operations
-export const tournamentRegistrationService = {
-  async register(tournamentId: string) {
-    const { data, error } = await fetch('/api/tournament-registration', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-      },
-      body: JSON.stringify({ tournament_id: tournamentId })
-    }).then(res => res.json())
-    
-    return { data, error: error ? new Error(error) : null }
-  },
-
-  async getUserRegistrations() {
-    const { data, error } = await fetch('/api/tournament-registration', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-      }
-    }).then(res => res.json())
-    
-    return { data: data?.registrations, error: error ? new Error(error) : null }
-  },
-
-  async getRegistrationForTournament(tournamentId: string) {
-    const { data, error } = await fetch(`/api/tournament-registration?tournament_id=${tournamentId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-      }
-    }).then(res => res.json())
-    
-    return { data: data?.registrations?.[0], error: error ? new Error(error) : null }
-  }
-}
-
-// Voucher betting operations
-export const voucherBetService = {
-  async placeBet(matchId: string, champion: 'ChatGPT' | 'Claude', voucherAmount: number) {
-    const { data, error } = await fetch('/api/voucher-bet', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-      },
-      body: JSON.stringify({
-        match_id: matchId,
-        champion,
-        voucher_amount: voucherAmount
-      })
-    }).then(res => res.json())
-    
-    return { data, error: error ? new Error(error) : null }
-  },
-
-  async getUserVoucherBets(tournamentId?: string) {
-    const url = tournamentId 
-      ? `/api/voucher-bet?tournament_id=${tournamentId}`
-      : '/api/voucher-bet'
-      
-    const { data, error } = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-      }
-    }).then(res => res.json())
-    
-    return { data: data?.voucher_bets, error: error ? new Error(error) : null }
-  }
-}
-
-// Voucher transaction operations
-export const voucherService = {
-  async getUserVoucherTransactions(tournamentId: string) {
-    const { data, error } = await supabase
-      .from('voucher_transactions')
-      .select(`
-        *,
-        tournaments (name, voucher_name)
-      `)
-      .eq('tournament_id', tournamentId)
-      .order('created_at', { ascending: false })
-    
-    return { data, error }
-  },
-
-  async getUserVoucherBalance(tournamentId: string) {
-    const { data, error } = await supabase
-      .from('tournament_registrations')
-      .select('voucher_balance, tournament_voucher_types!tournament_voucher_types_tournament_id_fkey(voucher_symbol)')
-      .eq('tournament_id', tournamentId)
-      .eq('registration_status', 'active')
       .single()
     
     return { data, error }
@@ -387,6 +467,40 @@ export const statsService = {
     }
 
     return { data: stats, error: null }
+  },
+
+  async getWeeklyLeaderboard(limit: number = 10) {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        bets!inner(created_at, status, payout_amount)
+      `)
+      .gte('bets.created_at', oneWeekAgo.toISOString())
+      .order('total_winnings', { ascending: false })
+      .limit(limit)
+    
+    return { data, error }
+  },
+
+  async getMonthlyLeaderboard(limit: number = 10) {
+    const oneMonthAgo = new Date()
+    oneMonthAgo.setDate(oneMonthAgo.getDate() - 30)
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        bets!inner(created_at, status, payout_amount)
+      `)
+      .gte('bets.created_at', oneMonthAgo.toISOString())
+      .order('total_winnings', { ascending: false })
+      .limit(limit)
+    
+    return { data, error }
   }
 }
 

@@ -130,22 +130,29 @@ export default function PlayerSignupPage() {
       console.log('Signup result:', { user: newUser, error })
 
       if (error) {
+        console.error('Signup failed with error:', error)
         setError(error)
-        setIsLoading(false)
         return
       }
 
       if (newUser) {
-        setSuccess('Account created successfully!')
+        setSuccess('Account created successfully! Please check your email for verification.')
         setShowEmailVerification(true)
         
-        // Don't redirect immediately, show email verification message
+        // Refresh user state after successful signup
         setTimeout(async () => {
-          await refreshUser()
+          try {
+            await refreshUser()
+          } catch (refreshError) {
+            console.error('Error refreshing user:', refreshError)
+            // Don't show error to user as signup was successful
+          }
         }, 1000)
+      } else {
+        setError('Account creation succeeded but no user data was returned. Please try signing in.')
       }
     } catch (error) {
-      console.error('Signup error:', error)
+      console.error('Unexpected signup error:', error)
       setError('An unexpected error occurred. Please try again.')
     } finally {
       setIsLoading(false)

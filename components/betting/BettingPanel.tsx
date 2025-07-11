@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useAuth } from '../providers/AuthProvider'
 
 interface BettingPanelProps {
   isGameActive?: boolean
@@ -13,6 +14,12 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
   const [selectedAgent, setSelectedAgent] = useState<'ChatGPT' | 'Claude' | null>(null)
   const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 })
   const [isLocked, setIsLocked] = useState(false)
+  const [betError, setBetError] = useState('')
+  const { user, loading, refreshUser } = useAuth()
+
+  // Get user balance from auth context
+  const userBalance = user?.tickets_balance || 0
+  const isLoadingBalance = loading
 
   // Mock data - in real app this would come from props or API
   const bettingData = {
@@ -67,6 +74,12 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
   const handleAmountSelect = (amount: number) => {
     if (!isLocked) {
       setSelectedAmount(amount)
+      setBetError('')
+      
+      // Check if user has enough tickets
+      if (amount > userBalance) {
+        setBetError(`Insufficient tickets. You have ${userBalance} tickets but need ${amount}`)
+      }
     }
   }
 
@@ -76,16 +89,110 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
     }
   }
 
-  const handleLockInBet = () => {
-    if (selectedAgent && selectedAmount > 0) {
+  const handleLockInBet = async () => {
+    if (!user) {
+      setBetError('Please sign in to place bets')
+      return
+    }
+
+    if (selectedAgent && selectedAmount > 0 && selectedAmount <= userBalance) {
+      setBetError('')
       setIsLocked(true)
-      // In real app, this would submit the bet to blockchain
-      console.log(`Bet locked: ${selectedAmount} $BEAM on ${selectedAgent}`)
+      
+      try {
+        // Get current session for authorization
+        const { supabase } = await import('../../lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        console.log('🔍 Session debug:', {
+          hasSession: !!session,
+          hasAccessToken: !!session?.access_token,
+          tokenLength: session?.access_token?.length
+        })
+        
+        if (!session?.access_token) {
+          setBetError('Authentication required. Please sign in again.')
+          setIsLocked(false)
+          return
+        }
+
+        // Test auth with debug endpoint first
+        console.log('🧪 Testing auth with debug endpoint...')
+        const debugResponse = await fetch('/api/debug-auth', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
+        
+        const debugResult = await debugResponse.json()
+        console.log('🧪 Debug auth result:', debugResult)
+        
+        if (!debugResponse.ok) {
+          setBetError(`Auth debug failed: ${debugResult.error}`)
+          setIsLocked(false)
+          return
+        }
+
+        const response = await fetch('/api/place-bet', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            matchId: 'demo-match-id', // In real app, this would come from props
+            champion: selectedAgent,
+            amount: selectedAmount
+          })
+        })
+
+        const result = await response.json()
+
+        if (response.ok) {
+          console.log('Bet placed successfully:', result)
+          // Refresh user data to get updated ticket balance
+          await refreshUser()
+          setBetError('')
+          // Keep bet locked to show success
+        } else {
+          setBetError(result.error || 'Failed to place bet')
+          setIsLocked(false)
+        }
+      } catch (error) {
+        console.error('Error placing bet:', error)
+        setBetError('Network error. Please try again.')
+        setIsLocked(false)
+      }
     }
   }
 
   const formatTime = (time: { minutes: number; seconds: number }) => {
     return `${time.minutes.toString().padStart(2, '0')}:${time.seconds.toString().padStart(2, '0')}`
+  }
+
+  // Show login prompt if user is not authenticated
+  if (!user && !loading) {
+    return (
+      <motion.div 
+        className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-2xl p-6 text-white"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+      >
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-4">Join the Match</h2>
+          <p className="text-purple-200 mb-6">Sign in to place bets and earn tickets!</p>
+          <a 
+            href="/login"
+            className="inline-block bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-3 px-6 rounded-xl transition-all"
+          >
+            Sign In to Bet
+          </a>
+        </div>
+      </motion.div>
+    )
   }
 
   return (
@@ -102,6 +209,23 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
         </div>
         <h2 className="text-2xl font-bold">Join the Match</h2>
       </div>
+
+      {/* Balance Display */}
+      <div className="bg-white/10 rounded-xl p-4 mb-6">
+        <div className="flex justify-between items-center">
+          <span className="text-purple-200">Your Tickets:</span>
+          <span className="text-yellow-400 font-bold text-lg">
+            {isLoadingBalance ? 'Loading...' : `${userBalance} 🎫`}
+          </span>
+        </div>
+      </div>
+
+      {/* Error Display */}
+      {betError && (
+        <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 mb-6">
+          <p className="text-red-300 text-sm">{betError}</p>
+        </div>
+      )}
 
       {/* Countdown Timer */}
       <div className="text-center mb-8">
@@ -216,16 +340,16 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
       {/* Lock In Button */}
       <motion.button
         onClick={handleLockInBet}
-        disabled={!selectedAgent || selectedAmount <= 0 || isLocked}
+        disabled={!selectedAgent || selectedAmount <= 0 || isLocked || selectedAmount > userBalance}
         className={`w-full p-4 rounded-xl font-bold text-lg transition-all ${
           isLocked
             ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
-            : selectedAgent && selectedAmount > 0
+            : selectedAgent && selectedAmount > 0 && selectedAmount <= userBalance
             ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white'
             : 'bg-gray-600 text-gray-400 cursor-not-allowed'
         }`}
-        whileHover={!isLocked && selectedAgent && selectedAmount > 0 ? { scale: 1.02 } : {}}
-        whileTap={!isLocked && selectedAgent && selectedAmount > 0 ? { scale: 0.98 } : {}}
+        whileHover={!isLocked && selectedAgent && selectedAmount > 0 && selectedAmount <= userBalance ? { scale: 1.02 } : {}}
+        whileTap={!isLocked && selectedAgent && selectedAmount > 0 && selectedAmount <= userBalance ? { scale: 0.98 } : {}}
       >
         {isLocked ? (
           <div className="flex items-center justify-center gap-2">

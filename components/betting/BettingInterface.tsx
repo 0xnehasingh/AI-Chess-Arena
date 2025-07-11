@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
 import { BetConfirmationModal } from './BetConfirmationModal'
+import { useAuth } from '../providers/AuthProvider'
 
 export function BettingInterface() {
   const [selectedChampion, setSelectedChampion] = useState<'ChatGPT' | 'Claude' | null>(null)
@@ -11,6 +12,7 @@ export function BettingInterface() {
   const [timeLeft, setTimeLeft] = useState(35) // 35 seconds left to bet
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const { user, refreshUser } = useAuth()
 
   // Live odds (would come from real-time data)
   const odds = {
@@ -36,18 +38,61 @@ export function BettingInterface() {
 
   const handlePlaceBet = () => {
     if (!selectedChampion || !betAmount || timeLeft <= 0) return
+    if (!user) {
+      // Redirect to login if not authenticated
+      window.location.href = '/login'
+      return
+    }
     setShowConfirmation(true)
   }
 
   const confirmBet = async () => {
+    if (!user) return
+    
     setIsLoading(true)
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    setIsLoading(false)
-    setShowConfirmation(false)
-    // Reset form
-    setSelectedChampion(null)
-    setBetAmount('10')
+    
+    try {
+      // Get current session for authorization
+      const { supabase } = await import('../../lib/supabase')
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (!session?.access_token) {
+        console.error('No session found')
+        return
+      }
+
+      const response = await fetch('/api/place-bet', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          matchId: 'demo-match-id', // In real app, this would come from props
+          champion: selectedChampion,
+          amount: parseFloat(betAmount || '0')
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok) {
+        console.log('Bet placed successfully:', result)
+        // Refresh user data to get updated ticket balance
+        await refreshUser()
+        setShowConfirmation(false)
+        // Reset form
+        setSelectedChampion(null)
+        setBetAmount('10')
+      } else {
+        console.error('Bet failed:', result.error)
+        // Show error to user (could add error state)
+      }
+    } catch (error) {
+      console.error('Error placing bet:', error)
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const isBettingClosed = timeLeft <= 0

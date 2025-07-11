@@ -1,70 +1,53 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Trophy, TrendingUp } from 'lucide-react'
 
 interface LeaderboardEntry {
+  id: string
   rank: number
   username: string
-  tier: 'Diamond' | 'Gold' | 'Silver'
-  streak: number
-  totalWinnings: number
-  winRate: number
-  totalBets: number
+  display_name: string | null
+  tier: 'Diamond' | 'Gold' | 'Silver' | 'Bronze'
+  total_winnings: number
+  win_rate: number
+  total_bets: number
+  tickets_balance: number
+  vouchers_balance: number
+  total_tickets_earned: number
+  total_tickets_spent: number
 }
-
-const overallLeaderboard: LeaderboardEntry[] = [
-  {
-    rank: 1,
-    username: 'ChessMaster2024',
-    tier: 'Diamond',
-    streak: 8,
-    totalWinnings: 2450.50,
-    winRate: 68.5,
-    totalBets: 127
-  },
-  {
-    rank: 2,
-    username: 'AIBetKing',
-    tier: 'Gold',
-    streak: 3,
-    totalWinnings: 2180.25,
-    winRate: 64.2,
-    totalBets: 156
-  },
-  {
-    rank: 3,
-    username: 'StrategicPlayer',
-    tier: 'Gold',
-    streak: 12,
-    totalWinnings: 1950.75,
-    winRate: 71.3,
-    totalBets: 98
-  },
-  {
-    rank: 4,
-    username: 'ChessAnalyst',
-    tier: 'Silver',
-    streak: 2,
-    totalWinnings: 1720.00,
-    winRate: 59.8,
-    totalBets: 189
-  },
-  {
-    rank: 5,
-    username: 'BettingPro',
-    tier: 'Silver',
-    streak: 5,
-    totalWinnings: 1540.30,
-    winRate: 66.7,
-    totalBets: 145
-  }
-]
 
 type TabType = 'overall' | 'week' | 'month'
 
 export default function LeaderboardPage() {
   const [activeTab, setActiveTab] = useState<TabType>('overall')
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(`/api/leaderboard?period=${activeTab}&limit=20`)
+        const data = await response.json()
+        
+        if (response.ok) {
+          setLeaderboard(data.leaderboard || [])
+        } else {
+          setError(data.error || 'Failed to fetch leaderboard')
+        }
+      } catch (err) {
+        setError('Failed to fetch leaderboard')
+        console.error('Error fetching leaderboard:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchLeaderboard()
+  }, [activeTab])
 
   const getTierColor = (tier: string) => {
     switch (tier) {
@@ -74,6 +57,8 @@ export default function LeaderboardPage() {
         return 'bg-gradient-to-r from-yellow-500 to-orange-500'
       case 'Silver':
         return 'bg-gray-500'
+      case 'Bronze':
+        return 'bg-gradient-to-r from-orange-600 to-red-600'
       default:
         return 'bg-gray-500'
     }
@@ -86,68 +71,129 @@ export default function LeaderboardPage() {
     return `#${rank}`
   }
 
-  const renderOverallTab = () => (
-    <div className="space-y-4">
-      {overallLeaderboard.map((entry) => (
-        <div key={entry.rank} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
-          <div className="flex items-center justify-between">
-            {/* Left side - Rank and user info */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center justify-center w-12 h-12 text-2xl">
-                {getTrophyIcon(entry.rank)}
-              </div>
-              
-              <div>
-                <h3 className="text-white font-bold text-lg">{entry.username}</h3>
-                <div className="flex items-center gap-3">
-                  <div className={`px-3 py-1 rounded-full ${getTierColor(entry.tier)}`}>
-                    <span className="text-white font-medium text-sm">{entry.tier}</span>
+  const renderOverallTab = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-white text-lg">Loading leaderboard...</div>
+        </div>
+      )
+    }
+
+    if (error) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-red-400 text-lg">{error}</div>
+        </div>
+      )
+    }
+
+    if (leaderboard.length === 0) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-purple-300 text-lg">No leaderboard data available</div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-4">
+        {leaderboard.map((entry) => (
+          <div key={entry.id} className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+            <div className="flex items-center justify-between">
+              {/* Left side - Rank and user info */}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center justify-center w-12 h-12 text-2xl">
+                  {getTrophyIcon(entry.rank)}
+                </div>
+                
+                <div>
+                  <h3 className="text-white font-bold text-lg">
+                    {entry.display_name || entry.username}
+                  </h3>
+                  {entry.display_name && (
+                    <div className="text-purple-300 text-sm">@{entry.username}</div>
+                  )}
+                  <div className="flex items-center gap-3 mt-1">
+                    <div className={`px-3 py-1 rounded-full ${getTierColor(entry.tier)}`}>
+                      <span className="text-white font-medium text-sm">{entry.tier}</span>
+                    </div>
+                    <span className="text-purple-300 text-sm">
+                      Balance: {entry.tickets_balance} tickets
+                    </span>
                   </div>
-                  <span className="text-purple-300 text-sm">Streak: {entry.streak}</span>
+                </div>
+              </div>
+
+              {/* Right side - Stats */}
+              <div className="flex gap-8 text-right">
+                <div>
+                  <div className="text-purple-300 text-sm mb-1">Total Winnings</div>
+                  <div className="text-green-400 font-bold text-lg">{entry.total_winnings} tickets</div>
+                </div>
+                
+                <div>
+                  <div className="text-purple-300 text-sm mb-1">Win Rate</div>
+                  <div className="text-cyan-400 font-bold text-lg">{entry.win_rate.toFixed(1)}%</div>
+                </div>
+                
+                <div>
+                  <div className="text-purple-300 text-sm mb-1">Total Bets</div>
+                  <div className="text-white font-bold text-lg">{entry.total_bets}</div>
                 </div>
               </div>
             </div>
-
-            {/* Right side - Stats */}
-            <div className="flex gap-8 text-right">
-              <div>
-                <div className="text-purple-300 text-sm mb-1">Total Winnings</div>
-                <div className="text-green-400 font-bold text-lg">${entry.totalWinnings.toFixed(2)}</div>
-              </div>
-              
-              <div>
-                <div className="text-purple-300 text-sm mb-1">Win Rate</div>
-                <div className="text-cyan-400 font-bold text-lg">{entry.winRate}%</div>
-              </div>
-              
-              <div>
-                <div className="text-purple-300 text-sm mb-1">Total Bets</div>
-                <div className="text-white font-bold text-lg">{entry.totalBets}</div>
-              </div>
-            </div>
           </div>
-        </div>
-      ))}
-    </div>
-  )
-
-  const renderWeeklyTab = () => (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-16 border border-white/20 text-center">
-      <Trophy className="text-yellow-400 mx-auto mb-6" size={64} />
-      <h3 className="text-2xl font-bold text-white mb-4">Weekly Rankings</h3>
-      <p className="text-purple-300 text-lg">Updated every Monday at midnight</p>
-    </div>
-  )
-
-  const renderMonthlyTab = () => (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-16 border border-white/20 text-center">
-      <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
-        <Trophy className="text-purple-400" size={64} />
+        ))}
       </div>
-      <h3 className="text-2xl font-bold text-white mb-4">Monthly Champions</h3>
-      <p className="text-purple-300 text-lg">Hall of fame for top monthly performers</p>
-    </div>
-  )
+    )
+  }
+
+  const renderWeeklyTab = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-white text-lg">Loading weekly leaderboard...</div>
+        </div>
+      )
+    }
+
+    if (leaderboard.length === 0) {
+      return (
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-16 border border-white/20 text-center">
+          <Trophy className="text-yellow-400 mx-auto mb-6" size={64} />
+          <h3 className="text-2xl font-bold text-white mb-4">Weekly Rankings</h3>
+          <p className="text-purple-300 text-lg">No weekly activity yet</p>
+        </div>
+      )
+    }
+
+    return renderOverallTab() // Use the same rendering logic
+  }
+
+  const renderMonthlyTab = () => {
+    if (loading) {
+      return (
+        <div className="flex items-center justify-center py-12">
+          <div className="text-white text-lg">Loading monthly leaderboard...</div>
+        </div>
+      )
+    }
+
+    if (leaderboard.length === 0) {
+      return (
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-16 border border-white/20 text-center">
+          <div className="w-16 h-16 mx-auto mb-6 flex items-center justify-center">
+            <Trophy className="text-purple-400" size={64} />
+          </div>
+          <h3 className="text-2xl font-bold text-white mb-4">Monthly Champions</h3>
+          <p className="text-purple-300 text-lg">No monthly activity yet</p>
+        </div>
+      )
+    }
+
+    return renderOverallTab() // Use the same rendering logic
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

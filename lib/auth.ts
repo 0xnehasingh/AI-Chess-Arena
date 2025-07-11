@@ -18,6 +18,10 @@ export interface AuthUser {
   short_bio?: string
   ticket_name?: string
   project_name?: string
+  tickets_balance?: number
+  vouchers_balance?: number
+  total_tickets_earned?: number
+  total_tickets_spent?: number
 }
 
 // Create profile from auth user metadata
@@ -197,6 +201,25 @@ export async function signUp(email: string, password: string, username: string, 
   try {
     console.log('Starting signup process for:', { email, username, displayName, userRole })
     
+    // Validate inputs
+    if (!email || !password || !username) {
+      return { user: null, error: 'Email, password, and username are required' }
+    }
+    
+    if (password.length < 6) {
+      return { user: null, error: 'Password must be at least 6 characters long' }
+    }
+    
+    // Check username availability first
+    const { available, error: usernameCheckError } = await checkUsernameAvailability(username)
+    if (usernameCheckError) {
+      return { user: null, error: `Failed to check username availability: ${usernameCheckError}` }
+    }
+    
+    if (!available) {
+      return { user: null, error: 'Username is already taken. Please choose a different username.' }
+    }
+    
     // Create the auth user (Supabase will handle duplicate emails)
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -211,6 +234,10 @@ export async function signUp(email: string, password: string, username: string, 
       // Handle specific error cases
       if (authError.message.includes('already registered')) {
         return { user: null, error: 'An account with this email already exists. Please sign in instead.' }
+      }
+      
+      if (authError.message.includes('Invalid email')) {
+        return { user: null, error: 'Please enter a valid email address.' }
       }
       
       return { user: null, error: authError.message }
@@ -251,7 +278,7 @@ export async function signUp(email: string, password: string, username: string, 
       }
     }
 
-    // Create profile in our profiles table
+    // Create profile in our profiles table with welcome tickets
     const { data: profile, error: profileError } = await profileService.create({
       id: authData.user.id,
       email,
@@ -263,6 +290,10 @@ export async function signUp(email: string, password: string, username: string, 
       total_bets: 0,
       win_rate: 0,
       user_role: userRole,
+      tickets_balance: 100, // Welcome bonus: 100 free tickets
+      vouchers_balance: 0,
+      total_tickets_earned: 100,
+      total_tickets_spent: 0,
     })
 
     console.log('Profile creation result:', { profile, profileError })
@@ -270,9 +301,14 @@ export async function signUp(email: string, password: string, username: string, 
     if (profileError) {
       console.error('Profile creation failed:', profileError)
       
-      // Handle duplicate username error
+      // Handle duplicate username error  
       if (profileError.message?.includes('duplicate key') && profileError.message?.includes('username')) {
         return { user: null, error: 'Username is already taken. Please choose a different username.' }
+      }
+      
+      // Handle duplicate email error
+      if (profileError.message?.includes('duplicate key') && profileError.message?.includes('email')) {
+        return { user: null, error: 'An account with this email already exists.' }
       }
       
       return { user: null, error: `Failed to create user profile: ${profileError.message}` }
@@ -281,24 +317,28 @@ export async function signUp(email: string, password: string, username: string, 
     console.log('Signup successful for user:', authData.user.id)
 
     return { 
-      user: {
-        id: authData.user.id,
-        email: authData.user.email!,
-        username: profile?.username,
-        display_name: profile?.display_name,
-        avatar_url: profile?.avatar_url,
-        total_winnings: profile?.total_winnings,
-        total_bets: profile?.total_bets,
-        win_rate: profile?.win_rate,
-        user_role: profile?.user_role,
-        website: profile?.website,
-        telegram_discord: profile?.telegram_discord,
-        logo_url: profile?.logo_url,
-        banner_url: profile?.banner_url,
-        short_bio: profile?.short_bio,
-        ticket_name: profile?.ticket_name,
-        project_name: profile?.project_name,
-      } as AuthUser, 
+              user: {
+          id: authData.user.id,
+          email: authData.user.email!,
+          username: profile?.username,
+          display_name: profile?.display_name,
+          avatar_url: profile?.avatar_url,
+          total_winnings: profile?.total_winnings,
+          total_bets: profile?.total_bets,
+          win_rate: profile?.win_rate,
+          user_role: profile?.user_role,
+          website: profile?.website,
+          telegram_discord: profile?.telegram_discord,
+          logo_url: profile?.logo_url,
+          banner_url: profile?.banner_url,
+          short_bio: profile?.short_bio,
+          ticket_name: profile?.ticket_name,
+          project_name: profile?.project_name,
+          tickets_balance: profile?.tickets_balance,
+          vouchers_balance: profile?.vouchers_balance,
+          total_tickets_earned: profile?.total_tickets_earned,
+          total_tickets_spent: profile?.total_tickets_spent,
+        } as AuthUser, 
       error: null 
     }
   } catch (error) {
@@ -327,36 +367,8 @@ export async function signIn(email: string, password: string) {
     const { data: profile, error: profileError } = await profileService.getById(data.user.id)
 
     if (profileError || !profile) {
-      console.log('Profile not found for user, attempting to create from auth data')
-      
-      // Try to create profile from auth user data
-      const { profile: newProfile, error: createError } = await createProfileFromAuthUser(data.user, 'player')
-      
-      if (createError || !newProfile) {
-        return { user: null, error: 'Failed to load or create user profile' }
-      }
-
-      return { 
-        user: {
-          id: data.user.id,
-          email: data.user.email!,
-          username: newProfile.username,
-          display_name: newProfile.display_name,
-          avatar_url: newProfile.avatar_url,
-          total_winnings: newProfile.total_winnings,
-          total_bets: newProfile.total_bets,
-          win_rate: newProfile.win_rate,
-          user_role: newProfile.user_role,
-          website: newProfile.website,
-          telegram_discord: newProfile.telegram_discord,
-          logo_url: newProfile.logo_url,
-          banner_url: newProfile.banner_url,
-          short_bio: newProfile.short_bio,
-          ticket_name: newProfile.ticket_name,
-          project_name: newProfile.project_name,
-        } as AuthUser, 
-        error: null 
-      }
+      console.log('Profile not found for user:', data.user.id)
+      return { user: null, error: 'Profile not found. Please go to profile recovery page to set up your profile.' }
     }
 
     return { 
@@ -377,6 +389,10 @@ export async function signIn(email: string, password: string) {
         short_bio: profile.short_bio,
         ticket_name: profile.ticket_name,
         project_name: profile.project_name,
+        tickets_balance: profile.tickets_balance,
+        vouchers_balance: profile.vouchers_balance,
+        total_tickets_earned: profile.total_tickets_earned,
+        total_tickets_spent: profile.total_tickets_spent,
       } as AuthUser, 
       error: null 
     }
@@ -415,39 +431,8 @@ export async function getCurrentUser(): Promise<{ user: AuthUser | null; error: 
     const { data: profile, error: profileError } = await profileService.getById(user.id)
 
     if (profileError || !profile) {
-      console.log('Profile not found for authenticated user, attempting to create from auth data')
-      
-      // Try to create profile from auth user data (default to player for existing auth users)
-      const { profile: newProfile, error: createError } = await createProfileFromAuthUser(user, 'player')
-      
-      if (createError || !newProfile) {
-        console.error('Failed to create profile for authenticated user:', createError)
-        return { user: null, error: 'Failed to load or create user profile' }
-      }
-
-      console.log('Profile created successfully for authenticated user')
-      
-      return { 
-        user: {
-          id: user.id,
-          email: user.email!,
-          username: newProfile.username,
-          display_name: newProfile.display_name,
-          avatar_url: newProfile.avatar_url,
-          total_winnings: newProfile.total_winnings,
-          total_bets: newProfile.total_bets,
-          win_rate: newProfile.win_rate,
-          user_role: newProfile.user_role,
-          website: newProfile.website,
-          telegram_discord: newProfile.telegram_discord,
-          logo_url: newProfile.logo_url,
-          banner_url: newProfile.banner_url,
-          short_bio: newProfile.short_bio,
-          ticket_name: newProfile.ticket_name,
-          project_name: newProfile.project_name,
-        } as AuthUser, 
-        error: null 
-      }
+      console.log('Profile not found for authenticated user:', user.id)
+      return { user: null, error: 'Profile not found. Please complete your profile setup.' }
     }
 
     return { 
@@ -468,10 +453,15 @@ export async function getCurrentUser(): Promise<{ user: AuthUser | null; error: 
         short_bio: profile.short_bio,
         ticket_name: profile.ticket_name,
         project_name: profile.project_name,
+        tickets_balance: profile.tickets_balance,
+        vouchers_balance: profile.vouchers_balance,
+        total_tickets_earned: profile.total_tickets_earned,
+        total_tickets_spent: profile.total_tickets_spent,
       } as AuthUser, 
       error: null 
     }
   } catch (error) {
+    console.error('Error in getCurrentUser:', error)
     return { user: null, error: 'An unexpected error occurred while fetching user data' }
   }
 }
@@ -480,53 +470,40 @@ export async function getCurrentUser(): Promise<{ user: AuthUser | null; error: 
 export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN' && session?.user) {
-      // Get user profile
-      const { data: profile } = await profileService.getById(session.user.id)
-      
-      if (profile) {
-        callback({
-          id: session.user.id,
-          email: session.user.email!,
-          username: profile.username,
-          display_name: profile.display_name,
-          avatar_url: profile.avatar_url,
-          total_winnings: profile.total_winnings,
-          total_bets: profile.total_bets,
-          win_rate: profile.win_rate,
-          user_role: profile.user_role,
-          website: profile.website,
-          telegram_discord: profile.telegram_discord,
-          logo_url: profile.logo_url,
-          banner_url: profile.banner_url,
-          short_bio: profile.short_bio,
-          ticket_name: profile.ticket_name,
-          project_name: profile.project_name,
-        } as AuthUser)
-      } else {
-        // Try to create profile from auth data (default to player for session users)
-        const { profile: newProfile } = await createProfileFromAuthUser(session.user, 'player')
-        if (newProfile) {
+      try {
+        // Get user profile
+        const { data: profile, error: profileError } = await profileService.getById(session.user.id)
+        
+        if (profile && !profileError) {
           callback({
             id: session.user.id,
             email: session.user.email!,
-            username: newProfile.username,
-            display_name: newProfile.display_name,
-            avatar_url: newProfile.avatar_url,
-            total_winnings: newProfile.total_winnings,
-            total_bets: newProfile.total_bets,
-            win_rate: newProfile.win_rate,
-            user_role: newProfile.user_role,
-            website: newProfile.website,
-            telegram_discord: newProfile.telegram_discord,
-            logo_url: newProfile.logo_url,
-            banner_url: newProfile.banner_url,
-            short_bio: newProfile.short_bio,
-            ticket_name: newProfile.ticket_name,
-            project_name: newProfile.project_name,
+            username: profile.username,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            total_winnings: profile.total_winnings,
+            total_bets: profile.total_bets,
+            win_rate: profile.win_rate,
+            user_role: profile.user_role,
+            website: profile.website,
+            telegram_discord: profile.telegram_discord,
+            logo_url: profile.logo_url,
+            banner_url: profile.banner_url,
+            short_bio: profile.short_bio,
+            ticket_name: profile.ticket_name,
+            project_name: profile.project_name,
+            tickets_balance: profile.tickets_balance,
+            vouchers_balance: profile.vouchers_balance,
+            total_tickets_earned: profile.total_tickets_earned,
+            total_tickets_spent: profile.total_tickets_spent,
           } as AuthUser)
         } else {
+          console.log('Profile not found for session user:', session.user.id)
           callback(null)
         }
+      } catch (error) {
+        console.error('Error in auth state change handler:', error)
+        callback(null)
       }
     } else {
       callback(null)

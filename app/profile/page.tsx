@@ -275,10 +275,26 @@ export default function ProfilePage() {
                 <div className="text-purple-300 text-sm">Total Bets</div>
               </div>
               <div className="text-center">
-                <div className="text-3xl font-bold text-green-400 mb-1">
-                  ${user.total_winnings?.toFixed(2) || '0.00'}
+                <div className="text-3xl font-bold text-yellow-400 mb-1">
+                  {user.tickets_balance || 0} 🎫
                 </div>
-                <div className="text-purple-300 text-sm">Winnings</div>
+                <div className="text-purple-300 text-sm">Tickets</div>
+              </div>
+            </div>
+
+            {/* Additional Ticket Stats */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-400 mb-1">
+                  {user.total_tickets_earned || 0}
+                </div>
+                <div className="text-purple-300 text-sm">Earned</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-red-400 mb-1">
+                  {user.total_tickets_spent || 0}
+                </div>
+                <div className="text-purple-300 text-sm">Spent</div>
               </div>
             </div>
 
@@ -383,7 +399,7 @@ export default function ProfilePage() {
                       <div className="text-center">
                         <DollarSign className="text-green-400 mx-auto mb-3" size={32} />
                         <div className="text-xl font-bold text-white mb-2">
-                          ${user.total_winnings?.toFixed(2) || '0.00'}
+                          {user.total_winnings || 0} tickets
                         </div>
                         <div className="text-purple-200">Total Winnings</div>
                       </div>
