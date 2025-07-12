@@ -1,16 +1,16 @@
 import Link from 'next/link'
-import { Users, Clock, Trophy, TrendingUp, Target, Flame, Play, Eye } from 'lucide-react'
+import { Users, Clock, Trophy, TrendingUp, Target, Zap, Play, Eye } from 'lucide-react'
 
-export default function DefiCoreTournamentPage() {
+export default function ClusterTournamentPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Tournament Header */}
       <div className="text-center mb-12">
         <div className="flex items-center justify-center gap-4 mb-6">
-          <div className="text-6xl">🔥</div>
+          <div className="text-6xl">💎</div>
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white">DefiCore Tournament</h1>
-            <p className="text-purple-300 text-xl">Elite AI Chess Masters Tournament</p>
+            <h1 className="text-4xl md:text-5xl font-bold text-white">Cluster Tournament</h1>
+            <p className="text-purple-300 text-xl">Diamond League Chess Championship</p>
           </div>
         </div>
         <div className="flex items-center justify-center gap-2 mb-4">
@@ -24,19 +24,19 @@ export default function DefiCoreTournamentPage() {
       {/* Tournament Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
-          <div className="text-3xl font-bold text-purple-400 mb-2">$12,000</div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">$8,500</div>
           <p className="text-purple-300">Prize Pool</p>
         </div>
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
-          <div className="text-3xl font-bold text-purple-400 mb-2">1,589</div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">634</div>
           <p className="text-purple-300">Participants</p>
         </div>
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
-          <div className="text-3xl font-bold text-purple-400 mb-2">12h 45m</div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">3d 6h 20m</div>
           <p className="text-purple-300">Time Left</p>
         </div>
         <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
-          <div className="text-3xl font-bold text-purple-400 mb-2">8</div>
+          <div className="text-3xl font-bold text-purple-400 mb-2">6</div>
           <p className="text-purple-300">Live Matches</p>
         </div>
       </div>
@@ -56,19 +56,19 @@ export default function DefiCoreTournamentPage() {
                 <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
                 LIVE
               </span>
-              <div className="text-purple-300 text-sm">Finals</div>
+              <div className="text-purple-300 text-sm">Diamond League</div>
             </div>
 
             <div className="text-center mb-4">
-              <div className="text-white font-bold text-lg">Elite Master vs Grand AI</div>
-              <div className="text-purple-300 text-sm">Move 31 • 15+10 Time Control</div>
+              <div className="text-white font-bold text-lg">Diamond Master vs Crystal AI</div>
+              <div className="text-purple-300 text-sm">Move 29 • 5+3 Time Control</div>
             </div>
 
             <div className="flex justify-between items-center mb-4">
               <div className="text-purple-300 text-sm">Viewers</div>
               <div className="text-white font-semibold flex items-center gap-1">
                 <Eye className="w-4 h-4" />
-                2,156
+                1,456
               </div>
             </div>
 
@@ -92,15 +92,15 @@ export default function DefiCoreTournamentPage() {
             </div>
 
             <div className="text-center mb-4">
-              <div className="text-white font-bold text-lg">Chess Prodigy vs Neural Master</div>
-              <div className="text-purple-300 text-sm">Move 18 • 15+10 Time Control</div>
+              <div className="text-white font-bold text-lg">Cluster Pro vs Gem Engine</div>
+              <div className="text-purple-300 text-sm">Move 14 • 5+3 Time Control</div>
             </div>
 
             <div className="flex justify-between items-center mb-4">
               <div className="text-purple-300 text-sm">Viewers</div>
               <div className="text-white font-semibold flex items-center gap-1">
                 <Eye className="w-4 h-4" />
-                1,789
+                987
               </div>
             </div>
 
@@ -124,15 +124,15 @@ export default function DefiCoreTournamentPage() {
             </div>
 
             <div className="text-center mb-4">
-              <div className="text-white font-bold text-lg">Deep Strategy vs AI Champion</div>
-              <div className="text-purple-300 text-sm">Move 26 • 15+10 Time Control</div>
+              <div className="text-white font-bold text-lg">Ruby Chess vs Sapphire AI</div>
+              <div className="text-purple-300 text-sm">Move 21 • 5+3 Time Control</div>
             </div>
 
             <div className="flex justify-between items-center mb-4">
               <div className="text-purple-300 text-sm">Viewers</div>
               <div className="text-white font-semibold flex items-center gap-1">
                 <Eye className="w-4 h-4" />
-                1,234
+                743
               </div>
             </div>
 
@@ -170,9 +170,9 @@ export default function DefiCoreTournamentPage() {
                 <div className="text-yellow-400">🏆</div>
                 <span>1</span>
               </div>
-              <div>Elite Master Pro</div>
-              <div>28</div>
-              <div className="text-purple-400 font-bold">3,124</div>
+              <div>Diamond Master</div>
+              <div>19</div>
+              <div className="text-purple-400 font-bold">2,156</div>
             </div>
 
             <div className="grid grid-cols-4 gap-4 text-white py-2">
@@ -180,9 +180,9 @@ export default function DefiCoreTournamentPage() {
                 <div className="text-gray-400">🥈</div>
                 <span>2</span>
               </div>
-              <div>Grand AI Supreme</div>
-              <div>26</div>
-              <div className="text-purple-400 font-bold">2,987</div>
+              <div>Crystal AI Pro</div>
+              <div>18</div>
+              <div className="text-purple-400 font-bold">2,089</div>
             </div>
 
             <div className="grid grid-cols-4 gap-4 text-white py-2">
@@ -190,23 +190,23 @@ export default function DefiCoreTournamentPage() {
                 <div className="text-orange-400">🥉</div>
                 <span>3</span>
               </div>
-              <div>Chess Prodigy</div>
-              <div>24</div>
-              <div className="text-purple-400 font-bold">2,856</div>
+              <div>Cluster Pro</div>
+              <div>17</div>
+              <div className="text-purple-400 font-bold">1,987</div>
             </div>
 
             <div className="grid grid-cols-4 gap-4 text-white py-2">
               <div>4</div>
-              <div>Neural Master</div>
-              <div>22</div>
-              <div className="text-purple-400 font-bold">2,734</div>
+              <div>Gem Engine</div>
+              <div>16</div>
+              <div className="text-purple-400 font-bold">1,856</div>
             </div>
 
             <div className="grid grid-cols-4 gap-4 text-white py-2">
               <div>5</div>
-              <div>Deep Strategy</div>
-              <div>21</div>
-              <div className="text-purple-400 font-bold">2,678</div>
+              <div>Ruby Chess</div>
+              <div>15</div>
+              <div className="text-purple-400 font-bold">1,743</div>
             </div>
           </div>
 
@@ -225,32 +225,32 @@ export default function DefiCoreTournamentPage() {
       {/* Tournament Info */}
       <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md rounded-3xl p-8 border border-purple-500/30">
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-white mb-4">About DefiCore Tournament</h3>
+          <h3 className="text-2xl font-bold text-white mb-4">About Cluster Tournament</h3>
           <p className="text-purple-200 text-lg max-w-3xl mx-auto mb-6">
-            Experience the elite AI chess masters tournament powered by DefiCore. Watch the most advanced AI models 
-            compete in high-stakes matches with sophisticated gameplay and compete for the $12,000 prize pool.
+            Experience the Diamond League Chess Championship powered by Cluster technology. Watch elite AI models 
+            compete in fast-paced matches with precise strategic gameplay for the $8,500 prize pool.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Flame className="text-white w-8 h-8" />
+                <Target className="text-white w-8 h-8" />
               </div>
-              <h4 className="text-lg font-bold text-white mb-2">Elite AI Models</h4>
-              <p className="text-purple-200 text-sm">Advanced AI with superior chess mastery</p>
+              <h4 className="text-lg font-bold text-white mb-2">Diamond League</h4>
+              <p className="text-purple-200 text-sm">Premium tier competition with elite AI champions</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trophy className="text-white w-8 h-8" />
               </div>
-              <h4 className="text-lg font-bold text-white mb-2">High Stakes</h4>
-              <p className="text-purple-200 text-sm">$12,000 prize pool for top champions</p>
+              <h4 className="text-lg font-bold text-white mb-2">Speed Chess</h4>
+              <p className="text-purple-200 text-sm">Fast-paced 5+3 time control matches</p>
             </div>
             <div className="text-center">
               <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Target className="text-white w-8 h-8" />
+                <Zap className="text-white w-8 h-8" />
               </div>
-              <h4 className="text-lg font-bold text-white mb-2">DeFi Ecosystem</h4>
-              <p className="text-purple-200 text-sm">Powered by DefiCore blockchain technology</p>
+              <h4 className="text-lg font-bold text-white mb-2">Cluster Powered</h4>
+              <p className="text-purple-200 text-sm">Built on high-performance Cluster infrastructure</p>
             </div>
           </div>
         </div>

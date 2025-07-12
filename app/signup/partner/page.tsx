@@ -60,7 +60,7 @@ export default function PartnerSignupPage() {
             window.history.replaceState({}, document.title, window.location.pathname)
             
             setTimeout(() => {
-              router.push('/profile')
+              router.push('/partner-dashboard')
             }, 2000)
           }
         } catch (error) {
@@ -78,7 +78,7 @@ export default function PartnerSignupPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user && !isTwitterLoading) {
-      router.push('/profile')
+      router.push('/partner-dashboard')
     }
   }, [user, router, isTwitterLoading])
 

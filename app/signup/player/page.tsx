@@ -32,7 +32,7 @@ export default function PlayerSignupPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user) {
-      router.push('/profile')
+      router.push('/home')
     }
   }, [user, router])
 
@@ -143,6 +143,7 @@ export default function PlayerSignupPage() {
         setTimeout(async () => {
           try {
             await refreshUser()
+            // After email verification, user will be redirected to /home via auth flow
           } catch (refreshError) {
             console.error('Error refreshing user:', refreshError)
             // Don't show error to user as signup was successful

@@ -2,13 +2,15 @@
 
 import { User, Trophy, Star, Calendar, Edit3, Mail, Shield, DollarSign, Globe, MessageCircle, Upload, FileText, Award } from 'lucide-react'
 import { useRequireAuth } from '../../components/providers/AuthProvider'
+import { usePartnerRedirect } from '../../hooks/usePartnerRedirect'
 import { useState } from 'react'
 
 export default function ProfilePage() {
   const { user, loading } = useRequireAuth()
+  const { isPartner, loading: partnerLoading } = usePartnerRedirect()
   const [activeTab, setActiveTab] = useState('overview')
 
-  if (loading) {
+  if (loading || partnerLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -22,7 +24,10 @@ export default function ProfilePage() {
     return null // This shouldn't happen due to useRequireAuth redirect
   }
 
-  const isPartner = user.user_role === 'partner'
+  // Don't render if partner (will be redirected)
+  if (isPartner) {
+    return null
+  }
 
   // Calculate member days (assuming account creation date)
   const memberSince = new Date('2024-01-15') // This would come from user.created_at when available

@@ -1,156 +1,259 @@
 import Link from 'next/link'
-import { Users, FileText, Trophy, TrendingUp, Target } from 'lucide-react'
+import { Users, Clock, Trophy, TrendingUp, Target, Zap, Play, Eye } from 'lucide-react'
 
-export default function MoonBeamSignUpPage() {
+export default function MoonBeamTournamentPage() {
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Header Section */}
+      {/* Tournament Header */}
       <div className="text-center mb-12">
-        <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
-          Choose How You Want to Join
-        </h1>
-        <p className="text-purple-200 text-lg md:text-xl max-w-3xl mx-auto">
-          Join as a player to predict and win tickets, or as a partner to sponsor AI agents.
-        </p>
-      </div>
-
-      {/* Two Options Cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto mb-12">
-        
-        {/* Join as a Player Card */}
-        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-md rounded-3xl p-8 border border-white/10 relative overflow-hidden">
-          {/* Green accent border on hover */}
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-3xl"></div>
-          
-          <div className="relative z-10">
-            {/* Header with Icon */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
-                <Users className="text-white w-8 h-8" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-white">Join as a Player</h2>
-            </div>
-
-            {/* Features List */}
-            <div className="space-y-6 mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <Trophy className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Get free tickets</span>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <Target className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Bet on AI agents like GPT-A or Claude</span>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Win prizes, climb leaderboards</span>
-              </div>
-            </div>
-
-            {/* Sign Up Button */}
-            <Link 
-              href="/signup/player"
-              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-hover"
-            >
-              <Users className="w-5 h-5" />
-              Sign Up as User
-            </Link>
+        <div className="flex items-center justify-center gap-4 mb-6">
+          <div className="text-6xl">🌙</div>
+          <div>
+            <h1 className="text-4xl md:text-5xl font-bold text-white">MoonBeam Tournament</h1>
+            <p className="text-purple-300 text-xl">$BEAM Championship Tournament</p>
           </div>
         </div>
-
-        {/* Join as a Partner Card */}
-        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-md rounded-3xl p-8 border border-white/10 relative overflow-hidden">
-          {/* Green accent border on hover */}
-          <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-emerald-500/10 opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-3xl"></div>
-          
-          <div className="relative z-10">
-            {/* Header with Icon */}
-            <div className="flex items-center gap-4 mb-8">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl flex items-center justify-center">
-                <FileText className="text-white w-8 h-8" />
-              </div>
-              <h2 className="text-2xl md:text-3xl font-bold text-white">Join as a Partner</h2>
-            </div>
-
-            {/* Features List */}
-            <div className="space-y-6 mb-8">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <Target className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Sponsor your own AI agent</span>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <Trophy className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Set up Trace Regions with rewards</span>
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="text-green-400 w-5 h-5" />
-                </div>
-                <span className="text-green-100 text-lg">Grow your brand and community</span>
-              </div>
-            </div>
-
-            {/* Sign Up Button */}
-            <Link 
-              href="/signup/partner"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-4 px-8 rounded-xl transition-all duration-200 flex items-center justify-center gap-2 btn-hover"
-            >
-              <FileText className="w-5 h-5" />
-              Sign Up as Partner
-            </Link>
-          </div>
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <span className="px-4 py-2 bg-purple-500 text-white text-sm font-semibold rounded-full flex items-center gap-2">
+            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            LIVE NOW
+          </span>
+          <span className="px-4 py-2 bg-yellow-500 text-black text-sm font-semibold rounded-full">
+            FEATURED
+          </span>
         </div>
       </div>
 
-      {/* Login Link */}
-      <div className="text-center">
-        <p className="text-purple-300 text-lg">
-          Already have an account?{' '}
-          <Link 
-            href="/login" 
-            className="text-green-400 hover:text-green-300 font-semibold transition-colors underline"
-          >
-            Log in here
-          </Link>
-        </p>
+      {/* Tournament Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
+          <div className="text-3xl font-bold text-purple-400 mb-2">$25,000</div>
+          <p className="text-purple-300">Prize Pool</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
+          <div className="text-3xl font-bold text-purple-400 mb-2">1,247</div>
+          <p className="text-purple-300">Participants</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
+          <div className="text-3xl font-bold text-purple-400 mb-2">2d 14h 30m</div>
+          <p className="text-purple-300">Time Left</p>
+        </div>
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 text-center">
+          <div className="text-3xl font-bold text-purple-400 mb-2">15</div>
+          <p className="text-purple-300">Live Matches</p>
+        </div>
       </div>
 
-      {/* Background Tournament Info (Optional) */}
-      <div className="mt-16 text-center">
-        <div className="bg-white/5 backdrop-blur-sm rounded-2xl p-6 border border-white/10 max-w-2xl mx-auto">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="text-4xl">🌙</div>
-            <h3 className="text-xl font-bold text-white">MoonBeam Championship</h3>
+      {/* Live Matches Section */}
+      <div className="mb-12">
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <Play className="text-purple-400 w-8 h-8" />
+          <h2 className="text-3xl font-bold text-white">Live Matches</h2>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Match 1 */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-purple-500/50 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <span className="px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                LIVE
+              </span>
+              <div className="text-purple-300 text-sm">Championship</div>
+            </div>
+
+            <div className="text-center mb-4">
+              <div className="text-white font-bold text-lg">MoonBeam Alpha vs Lunar AI</div>
+              <div className="text-purple-300 text-sm">Move 34 • 15+10 Time Control</div>
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-purple-300 text-sm">Viewers</div>
+              <div className="text-white font-semibold flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                3,247
+              </div>
+            </div>
+
+            <Link 
+              href="/live-match"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Watch Live
+            </Link>
           </div>
-          <p className="text-purple-200 mb-4">
-            You're joining the ultimate AI Chess Tournament powered by MoonBeam
+
+          {/* Match 2 */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-purple-500/50 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <span className="px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                LIVE
+              </span>
+              <div className="text-purple-300 text-sm">Semi-Final</div>
+            </div>
+
+            <div className="text-center mb-4">
+              <div className="text-white font-bold text-lg">Stellar Engine vs Cosmos AI</div>
+              <div className="text-purple-300 text-sm">Move 19 • 15+10 Time Control</div>
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-purple-300 text-sm">Viewers</div>
+              <div className="text-white font-semibold flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                2,089
+              </div>
+            </div>
+
+            <Link 
+              href="/live-match"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Watch Live
+            </Link>
+          </div>
+
+          {/* Match 3 */}
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-purple-500/50 transition-all duration-200">
+            <div className="flex items-center justify-between mb-4">
+              <span className="px-2 py-1 bg-red-500 text-white text-xs font-semibold rounded-full flex items-center gap-1">
+                <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse"></div>
+                LIVE
+              </span>
+              <div className="text-purple-300 text-sm">Quarter-Final</div>
+            </div>
+
+            <div className="text-center mb-4">
+              <div className="text-white font-bold text-lg">Galaxy Master vs Nebula Chess</div>
+              <div className="text-purple-300 text-sm">Move 16 • 15+10 Time Control</div>
+            </div>
+
+            <div className="flex justify-between items-center mb-4">
+              <div className="text-purple-300 text-sm">Viewers</div>
+              <div className="text-white font-semibold flex items-center gap-1">
+                <Eye className="w-4 h-4" />
+                1,756
+              </div>
+            </div>
+
+            <Link 
+              href="/live-match"
+              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+            >
+              <Play className="w-4 h-4" />
+              Watch Live
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Leaderboard */}
+      <div className="mb-12">
+        <div className="flex items-center justify-center gap-3 mb-8">
+          <Trophy className="text-purple-400 w-8 h-8" />
+          <h2 className="text-3xl font-bold text-white">Top Participants</h2>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div className="space-y-4">
+            {/* Leaderboard Header */}
+            <div className="grid grid-cols-4 gap-4 text-purple-300 text-sm font-semibold border-b border-white/20 pb-2">
+              <div>Rank</div>
+              <div>AI Champion</div>
+              <div>Wins</div>
+              <div>Points</div>
+            </div>
+
+            {/* Leaderboard Entries */}
+            <div className="grid grid-cols-4 gap-4 text-white py-2">
+              <div className="flex items-center gap-2">
+                <div className="text-yellow-400">🏆</div>
+                <span>1</span>
+              </div>
+              <div>MoonBeam Alpha</div>
+              <div>32</div>
+              <div className="text-purple-400 font-bold">3,567</div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 text-white py-2">
+              <div className="flex items-center gap-2">
+                <div className="text-gray-400">🥈</div>
+                <span>2</span>
+              </div>
+              <div>Lunar AI Supreme</div>
+              <div>30</div>
+              <div className="text-purple-400 font-bold">3,234</div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 text-white py-2">
+              <div className="flex items-center gap-2">
+                <div className="text-orange-400">🥉</div>
+                <span>3</span>
+              </div>
+              <div>Stellar Engine</div>
+              <div>28</div>
+              <div className="text-purple-400 font-bold">3,098</div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 text-white py-2">
+              <div>4</div>
+              <div>Cosmos AI</div>
+              <div>26</div>
+              <div className="text-purple-400 font-bold">2,945</div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 text-white py-2">
+              <div>5</div>
+              <div>Galaxy Master</div>
+              <div>24</div>
+              <div className="text-purple-400 font-bold">2,789</div>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <Link 
+              href="/leaderboard"
+              className="bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 inline-flex items-center gap-2"
+            >
+              <TrendingUp className="w-4 h-4" />
+              View Full Leaderboard
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Tournament Info */}
+      <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md rounded-3xl p-8 border border-purple-500/30">
+        <div className="text-center">
+          <h3 className="text-2xl font-bold text-white mb-4">About MoonBeam Tournament</h3>
+          <p className="text-purple-200 text-lg max-w-3xl mx-auto mb-6">
+            The ultimate AI Chess Tournament powered by MoonBeam blockchain technology. Experience the largest prize pool 
+            competition with advanced AI models competing in strategic gameplay for the $25,000 championship prize.
           </p>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-green-400 font-bold text-lg">$25,000</div>
-              <div className="text-purple-300 text-sm">Prize Pool</div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Target className="text-white w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-bold text-white mb-2">Championship Level</h4>
+              <p className="text-purple-200 text-sm">Highest tier AI competition with elite strategies</p>
             </div>
-            <div>
-              <div className="text-green-400 font-bold text-lg">1,247</div>
-              <div className="text-purple-300 text-sm">Participants</div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Trophy className="text-white w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-bold text-white mb-2">Largest Prize Pool</h4>
+              <p className="text-purple-200 text-sm">$25,000 championship prize for ultimate winner</p>
             </div>
-            <div>
-              <div className="text-green-400 font-bold text-lg">2d 14h</div>
-              <div className="text-purple-300 text-sm">Time Left</div>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Zap className="text-white w-8 h-8" />
+              </div>
+              <h4 className="text-lg font-bold text-white mb-2">MoonBeam Powered</h4>
+              <p className="text-purple-200 text-sm">Built on fast, secure MoonBeam blockchain</p>
             </div>
           </div>
         </div>

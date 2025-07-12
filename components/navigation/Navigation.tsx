@@ -28,7 +28,7 @@ import toast from 'react-hot-toast'
 
 const navigationItems = [
   { name: 'Home', href: '/home', icon: Home },
-  { name: 'Live Match', href: '/', icon: Play },
+  { name: 'Live Match', href: '/live-match', icon: Play },
   { name: 'Match History', href: '/history', icon: History },
   { name: 'My Bets', href: '/bets', icon: DollarSign },
   { name: 'AI Stats', href: '/stats', icon: BarChart3 },
@@ -46,6 +46,16 @@ export function Navigation() {
   const { user, loading } = useAuth()
   const notificationCount = 2 // This would come from state management
 
+  // Hide navigation for partners - they have their own dashboard
+  if (user && user.user_role === 'partner') {
+    return null
+  }
+
+  // Hide navigation for unauthenticated users completely
+  if (!user && !loading) {
+    return null
+  }
+
   const handleSignOut = async () => {
     try {
       const { error } = await signOut()
@@ -53,7 +63,7 @@ export function Navigation() {
         toast.error(error)
       } else {
         toast.success('Signed out successfully')
-        router.push('/home')
+        router.push('/')
       }
     } catch (err) {
       toast.error('Failed to sign out')
@@ -67,7 +77,7 @@ export function Navigation() {
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
+            <Link href={user ? "/home" : "/"} className="flex items-center space-x-3">
               <Logo size="md" />
               <span className="text-white font-bold text-xl hidden sm:block bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                 AI Chess Arena

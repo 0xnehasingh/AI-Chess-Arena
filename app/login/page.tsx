@@ -21,6 +21,11 @@ export default function LoginPage() {
   const { user, refreshUser } = useAuth()
   const router = useRouter()
 
+  // Helper function to get redirect path based on user role
+  const getRedirectPath = (userRole: string | undefined) => {
+    return userRole === 'partner' ? '/partner-dashboard' : '/home'
+  }
+
   // Handle OAuth callback on component mount
   useEffect(() => {
     const handleTwitterCallback = async () => {
@@ -49,7 +54,7 @@ export default function LoginPage() {
             window.history.replaceState({}, document.title, window.location.pathname)
             
             setTimeout(() => {
-              router.push('/profile')
+              router.push(getRedirectPath(oauthUser.user_role))
             }, 2000)
           }
         } catch (error) {
@@ -67,7 +72,7 @@ export default function LoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (user && !isTwitterLoading) {
-      router.push('/profile')
+      router.push(getRedirectPath(user.user_role))
     }
   }, [user, router, isTwitterLoading])
 
@@ -130,7 +135,7 @@ export default function LoginPage() {
         await refreshUser()
         
         setTimeout(() => {
-          router.push('/profile')
+          router.push(getRedirectPath(signedInUser.user_role))
         }, 2000)
       }
     } catch (error) {
