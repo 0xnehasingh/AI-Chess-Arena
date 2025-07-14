@@ -54,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = onAuthStateChange((user) => {
+      console.log('Auth provider received user update:', user?.id)
       setUser(user)
       setLoading(false)
       setError(null)

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import { TrendingUp } from 'lucide-react'
 import { BetConfirmationModal } from './BetConfirmationModal'
 import { useAuth } from '../providers/AuthProvider'
+import { useTournament } from '../providers/TournamentProvider'
 
 export function BettingInterface() {
   const [selectedChampion, setSelectedChampion] = useState<'ChatGPT' | 'Claude' | null>(null)
@@ -13,6 +14,7 @@ export function BettingInterface() {
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { user, refreshUser } = useAuth()
+  const { selectedTournament } = useTournament()
 
   // Live odds (would come from real-time data)
   const odds = {

@@ -10,7 +10,7 @@ export default function MoonBeamTournamentPage() {
           <div className="text-6xl">🌙</div>
           <div>
             <h1 className="text-4xl md:text-5xl font-bold text-white">MoonBeam Tournament</h1>
-            <p className="text-purple-300 text-xl">$BEAM Championship Tournament</p>
+            <p className="text-purple-300 text-xl">Championship Tournament</p>
           </div>
         </div>
         <div className="flex items-center justify-center gap-2 mb-4">

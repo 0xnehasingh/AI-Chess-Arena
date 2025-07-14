@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { 
@@ -10,7 +10,6 @@ import {
   BarChart3, 
   Trophy, 
   User, 
-  HelpCircle, 
   Bell,
   Menu,
   X,
@@ -23,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { NotificationPanel } from './NotificationPanel'
 import { Logo } from '@/components/ui/Logo'
 import { useAuth } from '@/components/providers/AuthProvider'
+import { useTournament } from '@/components/providers/TournamentProvider'
 import { signOut } from '@/lib/auth'
 import toast from 'react-hot-toast'
 
@@ -34,7 +34,6 @@ const navigationItems = [
   { name: 'AI Stats', href: '/stats', icon: BarChart3 },
   { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
   { name: 'Profile', href: '/profile', icon: User },
-  { name: 'How It Works', href: '/how-it-works', icon: HelpCircle },
 ]
 
 export function Navigation() {
@@ -44,6 +43,7 @@ export function Navigation() {
   const pathname = usePathname()
   const router = useRouter()
   const { user, loading } = useAuth()
+  const { selectedTournament, leaveTournament } = useTournament()
   const notificationCount = 2 // This would come from state management
 
   // Hide navigation for partners - they have their own dashboard
@@ -58,17 +58,28 @@ export function Navigation() {
 
   const handleSignOut = async () => {
     try {
+      setShowUserMenu(false)
+      // Show loading state
+      toast.loading('Signing out...')
+      
       const { error } = await signOut()
+      
+      // Clear any loading toasts
+      toast.dismiss()
+      
       if (error) {
         toast.error(error)
       } else {
         toast.success('Signed out successfully')
-        router.push('/')
+        // Force a small delay to ensure auth state is cleared
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 100)
       }
     } catch (err) {
+      toast.dismiss()
       toast.error('Failed to sign out')
     }
-    setShowUserMenu(false)
   }
 
   return (
@@ -90,6 +101,32 @@ export function Navigation() {
                 const isActive = pathname === item.href
                 const Icon = item.icon
                 
+                // Handle Live Match link specially
+                if (item.name === 'Live Match') {
+                  const handleLiveMatchClick = (e: React.MouseEvent) => {
+                    if (!selectedTournament) {
+                      e.preventDefault()
+                      router.push('/home')
+                    }
+                  }
+                  
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      onClick={handleLiveMatchClick}
+                      className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                        isActive
+                          ? 'bg-purple-600 text-white'
+                          : 'text-purple-200 hover:text-white hover:bg-white/10'
+                      }`}
+                    >
+                      <Icon size={18} />
+                      <span className="text-sm font-medium">{item.name}</span>
+                    </Link>
+                  )
+                }
+                
                 return (
                   <Link
                     key={item.name}
@@ -105,6 +142,24 @@ export function Navigation() {
                   </Link>
                 )
               })}
+              
+              {/* Tournament Status Indicator */}
+              {selectedTournament && (
+                <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-purple-600/20 to-pink-600/20 backdrop-blur-sm rounded-lg border border-purple-500/30">
+                  <div className="text-lg">{selectedTournament.emoji}</div>
+                  <div className="text-xs">
+                    <div className="text-white font-medium">{selectedTournament.company}</div>
+                    <div className="text-purple-300">Tournament</div>
+                  </div>
+                  <button
+                    onClick={() => leaveTournament()}
+                    className="text-purple-300 hover:text-white transition-colors"
+                    title="Leave Tournament"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Notifications, Auth & Mobile Menu */}
@@ -217,6 +272,33 @@ export function Navigation() {
                 {navigationItems.map((item) => {
                   const isActive = pathname === item.href
                   const Icon = item.icon
+                  
+                  // Handle Live Match link specially for mobile
+                  if (item.name === 'Live Match') {
+                    const handleMobileLiveMatchClick = (e: React.MouseEvent) => {
+                      setIsOpen(false)
+                      if (!selectedTournament) {
+                        e.preventDefault()
+                        router.push('/home')
+                      }
+                    }
+                    
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        onClick={handleMobileLiveMatchClick}
+                        className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                          isActive
+                            ? 'bg-purple-600 text-white'
+                            : 'text-purple-200 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <Icon size={20} />
+                        <span className="font-medium">{item.name}</span>
+                      </Link>
+                    )
+                  }
                   
                   return (
                     <Link

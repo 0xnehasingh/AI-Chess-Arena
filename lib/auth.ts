@@ -404,12 +404,18 @@ export async function signIn(email: string, password: string) {
 // Sign out user
 export async function signOut() {
   try {
+    console.log('Attempting to sign out...')
     const { error } = await supabase.auth.signOut()
+    
     if (error) {
+      console.error('Sign out error:', error)
       return { error: error.message }
     }
+    
+    console.log('Sign out successful')
     return { error: null }
   } catch (error) {
+    console.error('Unexpected sign out error:', error)
     return { error: 'An unexpected error occurred during sign out' }
   }
 }
@@ -469,6 +475,14 @@ export async function getCurrentUser(): Promise<{ user: AuthUser | null; error: 
 // Listen to auth state changes
 export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
   const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state change:', event, session?.user?.id)
+    
+    if (event === 'SIGNED_OUT' || !session?.user) {
+      // Explicitly handle sign out
+      callback(null)
+      return
+    }
+    
     if (event === 'SIGNED_IN' && session?.user) {
       try {
         // Get user profile
@@ -505,7 +519,40 @@ export function onAuthStateChange(callback: (user: AuthUser | null) => void) {
         console.error('Error in auth state change handler:', error)
         callback(null)
       }
+    } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+      // Handle token refresh - keep existing user state or refresh it
+      try {
+        const { data: profile, error: profileError } = await profileService.getById(session.user.id)
+        
+        if (profile && !profileError) {
+          callback({
+            id: session.user.id,
+            email: session.user.email!,
+            username: profile.username,
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            total_winnings: profile.total_winnings,
+            total_bets: profile.total_bets,
+            win_rate: profile.win_rate,
+            user_role: profile.user_role,
+            website: profile.website,
+            telegram_discord: profile.telegram_discord,
+            logo_url: profile.logo_url,
+            banner_url: profile.banner_url,
+            short_bio: profile.short_bio,
+            ticket_name: profile.ticket_name,
+            project_name: profile.project_name,
+            tickets_balance: profile.tickets_balance,
+            vouchers_balance: profile.vouchers_balance,
+            total_tickets_earned: profile.total_tickets_earned,
+            total_tickets_spent: profile.total_tickets_spent,
+          } as AuthUser)
+        }
+      } catch (error) {
+        console.error('Error refreshing user on token refresh:', error)
+      }
     } else {
+      // For any other event, clear user state
       callback(null)
     }
   })

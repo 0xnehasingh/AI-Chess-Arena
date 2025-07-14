@@ -8,6 +8,7 @@ import { LiveCommentary } from './LiveCommentary'
 import { MoveHistory } from './MoveHistory'
 import { getAIMove } from '@/lib/agent'
 import { BettingPanel } from '../betting/BettingPanel'
+import { useTournament } from '@/components/providers/TournamentProvider'
 
 export interface ChessMove {
   id: string
@@ -32,6 +33,7 @@ interface GameState {
 }
 
 export function LiveMatch() {
+  const { selectedTournament } = useTournament()
   const [chess] = useState(() => new Chess())
   const [moves, setMoves] = useState<ChessMove[]>([])
   const [currentPlayer, setCurrentPlayer] = useState<'ChatGPT' | 'Claude'>('Claude')
@@ -508,7 +510,45 @@ export function LiveMatch() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 md:p-6">
       <div className="max-w-7xl mx-auto">
-
+        {/* Tournament Header */}
+        {selectedTournament && (
+          <motion.div 
+            className="mb-8 text-center"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className={`bg-gradient-to-r ${selectedTournament.theme.gradient} backdrop-blur-md rounded-2xl p-6 border border-white/20`}>
+              <div className="flex items-center justify-center gap-4 mb-4">
+                <div className="text-4xl">{selectedTournament.emoji}</div>
+                <div>
+                  <h1 className="text-3xl font-bold text-white">{selectedTournament.name}</h1>
+                  <p className="text-purple-200">{selectedTournament.description}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 bg-red-500 text-white text-sm font-semibold rounded-full flex items-center gap-1">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                    LIVE
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-white/10 rounded-lg p-3">
+                  <div className="text-purple-300 text-sm">Prize Pool</div>
+                  <div className="text-white font-bold text-lg">{selectedTournament.prizePool}</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3">
+                  <div className="text-purple-300 text-sm">Participants</div>
+                  <div className="text-white font-bold text-lg">{selectedTournament.participants}</div>
+                </div>
+                <div className="bg-white/10 rounded-lg p-3">
+                  <div className="text-purple-300 text-sm">Time Left</div>
+                  <div className="text-white font-bold text-lg">{selectedTournament.timeLeft}</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Left Column - Chess Board */}

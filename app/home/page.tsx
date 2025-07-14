@@ -3,13 +3,15 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Trophy, Users, Clock, TrendingUp, Target, Zap } from 'lucide-react'
+import { Trophy, Users, Clock, TrendingUp, Target, Zap, UserPlus } from 'lucide-react'
 import { usePartnerRedirect } from '../../hooks/usePartnerRedirect'
 import { useAuth } from '../../components/providers/AuthProvider'
+import { useTournament } from '@/components/providers/TournamentProvider'
 
 export default function TournamentHomePage() {
   const { isPartner, loading } = usePartnerRedirect()
   const { user } = useAuth()
+  const { joinTournament } = useTournament()
   const router = useRouter()
 
   // Redirect unauthenticated users to landing page
@@ -18,6 +20,11 @@ export default function TournamentHomePage() {
       router.push('/')
     }
   }, [user, loading, router])
+
+  const handleJoinTournament = (tournamentId: string) => {
+    joinTournament(tournamentId)
+    router.push('/live-match')
+  }
 
   // Show loading while checking auth
   if (loading) {
@@ -82,13 +89,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-              <Link 
-                href="/tournament/nodeops"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+              <button 
+                onClick={() => handleJoinTournament('nodeops')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
               >
-                <Trophy className="w-4 h-4" />
-              View Tournament
-              </Link>
+                <UserPlus className="w-4 h-4" />
+                Join Tournament
+              </button>
           </div>
 
           {/* DefiCore Tournament */}
@@ -130,13 +137,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-              <Link 
-                href="/tournament/deficore"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+              <button 
+                onClick={() => handleJoinTournament('deficore')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
               >
-                <Trophy className="w-4 h-4" />
-              View Tournament
-              </Link>
+                <UserPlus className="w-4 h-4" />
+                Join Tournament
+              </button>
           </div>
 
           {/* Cluster Tournament */}
@@ -178,13 +185,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-              <Link 
-                href="/tournament/cluster"
-              className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
-            >
-              <Trophy className="w-4 h-4" />
-              View Tournament
-            </Link>
+              <button 
+                onClick={() => handleJoinTournament('cluster')}
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
+              >
+                <UserPlus className="w-4 h-4" />
+                Join Tournament
+              </button>
           </div>
 
           {/* MoonBeam Tournament */}
@@ -226,13 +233,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-            <Link 
-              href="/tournament/moonbeam"
+            <button 
+              onClick={() => handleJoinTournament('moonbeam')}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
             >
-              <Trophy className="w-4 h-4" />
-              View Tournament
-            </Link>
+              <UserPlus className="w-4 h-4" />
+              Join Tournament
+            </button>
           </div>
 
           {/* Additional Tournament Slots */}
@@ -274,13 +281,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-            <Link 
-              href="/tournament/polygon"
+                        <button 
+              onClick={() => handleJoinTournament('polygon')}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
-              >
-                <Trophy className="w-4 h-4" />
-              View Tournament
-              </Link>
+            >
+              <UserPlus className="w-4 h-4" />
+              Join Tournament
+            </button>
           </div>
 
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-purple-500/50 transition-all duration-200 btn-hover">
@@ -321,13 +328,13 @@ export default function TournamentHomePage() {
               </div>
             </div>
 
-            <Link 
-              href="/tournament/fantom"
+            <button 
+              onClick={() => handleJoinTournament('fantom')}
               className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
             >
-              <Trophy className="w-4 h-4" />
-              View Tournament
-            </Link>
+              <UserPlus className="w-4 h-4" />
+              Join Tournament
+            </button>
           </div>
         </div>
       </div>

@@ -6,10 +6,12 @@ import { LiveMatch } from '@/components/live-match/LiveMatch'
 import { BettingInterface } from '@/components/betting/BettingInterface'
 import { usePartnerRedirect } from '../../hooks/usePartnerRedirect'
 import { useAuth } from '../../components/providers/AuthProvider'
+import { useTournament } from '@/components/providers/TournamentProvider'
 
 export default function LiveMatchPage() {
   const { isPartner, loading } = usePartnerRedirect()
   const { user } = useAuth()
+  const { selectedTournament } = useTournament()
   const router = useRouter()
 
   // Redirect unauthenticated users to landing page
@@ -18,6 +20,13 @@ export default function LiveMatchPage() {
       router.push('/')
     }
   }, [user, loading, router])
+
+  // Redirect to home if no tournament is selected
+  useEffect(() => {
+    if (!loading && user && !selectedTournament) {
+      router.push('/home')
+    }
+  }, [user, loading, selectedTournament, router])
 
   // Show loading while checking auth
   if (loading) {
@@ -28,8 +37,8 @@ export default function LiveMatchPage() {
     )
   }
 
-  // Don't render if partner (will be redirected) or no user
-  if (isPartner || !user) {
+  // Don't render if partner (will be redirected), no user, or no tournament selected
+  if (isPartner || !user || !selectedTournament) {
     return null
   }
 
@@ -37,10 +46,10 @@ export default function LiveMatchPage() {
     <div className="container mx-auto px-2 py-6">
       <div className="text-center mb-8">
         <h4 className="text-2xl md:text-4xl font-bold text-white mb-4 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-          Battle #42 - ChatGPT vs Claude
+          {selectedTournament.emoji} {selectedTournament.name} - ChatGPT vs Claude
         </h4>
         <p className="text-purple-200 text-lg md:text-xl">
-          Live AI Chess Championship
+          {selectedTournament.description} • Live Match
         </p>
       </div>
 

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { useAuth } from '../providers/AuthProvider'
+import { useTournament } from '../providers/TournamentProvider'
 
 interface BettingPanelProps {
   isGameActive?: boolean
@@ -16,21 +17,48 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
   const [isLocked, setIsLocked] = useState(false)
   const [betError, setBetError] = useState('')
   const { user, loading, refreshUser } = useAuth()
+  const { selectedTournament } = useTournament()
 
   // Get user balance from auth context
   const userBalance = user?.tickets_balance || 0
   const isLoadingBalance = loading
 
-  // Mock data - in real app this would come from props or API
-  const bettingData = {
+  // Get tournament token or default to BEAM
+  const tournamentToken = selectedTournament?.token || '$BEAM'
+
+  // Generate tournament-specific betting data
+  const bettingData = selectedTournament ? {
     chatgpt: {
-      staked: 12000,
-      supporters: 45
+      staked: selectedTournament.id === 'moonbeam' ? 12000 :
+               selectedTournament.id === 'nodeops' ? 8500 :
+               selectedTournament.id === 'deficore' ? 15600 :
+               selectedTournament.id === 'cluster' ? 6200 :
+               selectedTournament.id === 'polygon' ? 11300 :
+               selectedTournament.id === 'fantom' ? 4800 : 12000,
+      supporters: selectedTournament.id === 'moonbeam' ? 45 :
+                  selectedTournament.id === 'nodeops' ? 32 :
+                  selectedTournament.id === 'deficore' ? 58 :
+                  selectedTournament.id === 'cluster' ? 28 :
+                  selectedTournament.id === 'polygon' ? 41 :
+                  selectedTournament.id === 'fantom' ? 19 : 45
     },
     claude: {
-      staked: 19800,
-      supporters: 67
+      staked: selectedTournament.id === 'moonbeam' ? 19800 :
+              selectedTournament.id === 'nodeops' ? 14200 :
+              selectedTournament.id === 'deficore' ? 21400 :
+              selectedTournament.id === 'cluster' ? 9800 :
+              selectedTournament.id === 'polygon' ? 16700 :
+              selectedTournament.id === 'fantom' ? 7200 : 19800,
+      supporters: selectedTournament.id === 'moonbeam' ? 67 :
+                  selectedTournament.id === 'nodeops' ? 48 :
+                  selectedTournament.id === 'deficore' ? 82 :
+                  selectedTournament.id === 'cluster' ? 35 :
+                  selectedTournament.id === 'polygon' ? 59 :
+                  selectedTournament.id === 'fantom' ? 24 : 67
     }
+  } : {
+    chatgpt: { staked: 12000, supporters: 45 },
+    claude: { staked: 19800, supporters: 67 }
   }
 
   const totalPool = bettingData.chatgpt.staked + bettingData.claude.staked
@@ -257,7 +285,7 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
               <div className="flex-1 text-left">
                 <div className="text-lg font-semibold">Support ChatGPT</div>
                 <div className="text-purple-200">
-                  {bettingData.chatgpt.staked.toLocaleString()} $BEAM staked
+                  {bettingData.chatgpt.staked.toLocaleString()} {tournamentToken} staked
                 </div>
               </div>
               {selectedAgent === 'ChatGPT' && (
@@ -283,7 +311,7 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
               <div className="flex-1 text-left">
                 <div className="text-lg font-semibold">Support Claude</div>
                 <div className="text-purple-200">
-                  {bettingData.claude.staked.toLocaleString()} $BEAM staked
+                  {bettingData.claude.staked.toLocaleString()} {tournamentToken} staked
                 </div>
               </div>
               {selectedAgent === 'Claude' && (
@@ -296,7 +324,7 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
 
       {/* Stake Amount */}
       <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-4">Stake Tickets ($BEAM)</h3>
+        <h3 className="text-lg font-semibold mb-4">Stake Tickets ({tournamentToken})</h3>
         
         {/* Custom Amount Input */}
         <div className="mb-4">
@@ -366,14 +394,14 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
       <div className="mt-6 pt-6 border-t border-white/20">
         <div className="flex justify-between items-center mb-2">
           <span className="text-purple-200">Total Pool:</span>
-          <span className="text-xl font-bold">{totalPool.toLocaleString()} $BEAM</span>
+          <span className="text-xl font-bold">{totalPool.toLocaleString()} {tournamentToken}</span>
         </div>
         
         {selectedAgent && selectedAmount > 0 && (
           <div className="flex justify-between items-center">
             <span className="text-purple-200">Estimated Payout:</span>
             <span className="text-xl font-bold text-green-400">
-              +{estimatedPayout.toFixed(1)} $BEAM
+              +{estimatedPayout.toFixed(1)} {tournamentToken}
             </span>
           </div>
         )}
