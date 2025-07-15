@@ -11,8 +11,8 @@ export default function LandingPage() {
   const { user, loading } = useAuth()
 
   useEffect(() => {
-    // Redirect authenticated users to appropriate dashboard
-    if (!loading && user) {
+    // Only redirect if we have a confirmed user (not during loading or when user is null)
+    if (user && !loading) {
       if (user.user_role === 'partner') {
         window.location.href = '/partner-dashboard'
       } else {
@@ -21,12 +21,23 @@ export default function LandingPage() {
       return
     }
     
-    setIsVisible(true)
+    // Show the landing page immediately if no user or loading is done
+    if (!user || !loading) {
+      setIsVisible(true)
+    }
+    
     const interval = setInterval(() => {
       setCurrentFeature(prev => (prev + 1) % 3)
     }, 3000)
     return () => clearInterval(interval)
   }, [loading, user])
+
+  // Show landing page immediately for signed-out users
+  if (!user && !loading) {
+    if (!isVisible) {
+      setIsVisible(true)
+    }
+  }
 
   const features = [
     { icon: Brain, title: "AI vs AI Battles", description: "Watch cutting-edge AI agents compete in strategic chess matches" },
@@ -56,17 +67,7 @@ export default function LandingPage() {
     { name: "DefiCore Arena", prize: "$12,000", participants: "654", status: "Starting Soon", emoji: "🔥" }
   ]
 
-  // Show loading while checking authentication
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading AI Chess Arena...</p>
-        </div>
-      </div>
-    )
-  }
+  // Don't show loading state - display landing page immediately for better UX after sign out
 
   return (
     <div className="min-h-screen">

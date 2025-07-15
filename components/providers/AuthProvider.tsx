@@ -1,13 +1,14 @@
 'use client'
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { getCurrentUser, onAuthStateChange, AuthUser } from '../../lib/auth'
+import { getCurrentUser, onAuthStateChange, AuthUser, signOut as authSignOut } from '../../lib/auth'
 
 interface AuthContextType {
   user: AuthUser | null
   loading: boolean
   error: string | null
   refreshUser: () => Promise<void>
+  signOut: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -36,6 +37,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const signOut = async () => {
+    try {
+      console.log('AuthProvider: Starting sign out process...')
+      
+      // Immediately clear user state
+      setUser(null)
+      setLoading(false)
+      setError(null)
+      
+      // Call the auth service to sign out
+      const { error: signOutError } = await authSignOut()
+      
+      if (signOutError) {
+        console.error('Sign out error:', signOutError)
+        // Even if there's an error, we've cleared local state
+      }
+      
+      // Immediate redirect to landing page
+      console.log('AuthProvider: Redirecting to landing page...')
+      window.location.href = '/'
+      
+    } catch (error) {
+      console.error('Unexpected sign out error:', error)
+      // Still clear state and redirect even on error
+      setUser(null)
+      setLoading(false)
+      setError(null)
+      window.location.href = '/'
+    }
+  }
+
   useEffect(() => {
     let isInitialLoad = true
     
@@ -48,7 +80,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null)
         } else {
           setUser(currentUser)
-          setError(null)
         }
         setLoading(false)
       }
@@ -82,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     error,
     refreshUser,
+    signOut,
   }
 
   return (

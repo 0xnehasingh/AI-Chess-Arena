@@ -23,7 +23,6 @@ import { NotificationPanel } from './NotificationPanel'
 import { Logo } from '@/components/ui/Logo'
 import { useAuth } from '@/components/providers/AuthProvider'
 import { useTournament } from '@/components/providers/TournamentProvider'
-import { signOut } from '@/lib/auth'
 import toast from 'react-hot-toast'
 
 const navigationItems = [
@@ -42,7 +41,7 @@ export function Navigation() {
   const [showUserMenu, setShowUserMenu] = useState(false)
   const pathname = usePathname()
   const router = useRouter()
-  const { user, loading } = useAuth()
+  const { user, loading, signOut } = useAuth()
   const { selectedTournament, leaveTournament } = useTournament()
   const notificationCount = 2 // This would come from state management
 
@@ -59,25 +58,12 @@ export function Navigation() {
   const handleSignOut = async () => {
     try {
       setShowUserMenu(false)
-      // Show loading state
-      toast.loading('Signing out...')
       
-      const { error } = await signOut()
+      // Use centralized signOut from AuthProvider
+      await signOut()
       
-      // Clear any loading toasts
-      toast.dismiss()
-      
-      if (error) {
-        toast.error(error)
-      } else {
-        toast.success('Signed out successfully')
-        // Force a complete page reload to clear all state
-        setTimeout(() => {
-          window.location.replace('/')
-        }, 500)
-      }
     } catch (err) {
-      toast.dismiss()
+      console.error('Sign out error:', err)
       toast.error('Failed to sign out')
     }
   }
