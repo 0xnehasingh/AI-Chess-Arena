@@ -1,7 +1,7 @@
 'use client'
 
 import { User, Trophy, Star, Calendar, Edit3, Mail, Shield, DollarSign, Globe, MessageCircle, Upload, FileText, Award } from 'lucide-react'
-import { useRequireAuth } from '../../components/providers/AuthProvider'
+import { useRequireAuth } from '@/components/providers/AuthProvider'
 import { usePartnerRedirect } from '../../hooks/usePartnerRedirect'
 import { useState, useEffect } from 'react'
 
@@ -34,14 +34,32 @@ export default function ProfilePage() {
   // Fetch dynamic profile data
   useEffect(() => {
     const fetchProfileData = async () => {
-      if (!user) return
+      if (!user) {
+        setLoadingData(false)
+        return
+      }
 
       try {
+        setLoadingData(true)
+        console.log('Fetching profile data for user:', user.id)
+
         // Get session for API calls
         const { supabase } = await import('../../lib/supabase')
         const { data: { session } } = await supabase.auth.getSession()
         
-        if (!session?.access_token) return
+        if (!session?.access_token) {
+          console.log('No session found, using user data from auth provider')
+          // Fallback to user data from auth provider
+          setProfileData({
+            created_at: new Date().toISOString(), // Fallback date
+            total_winnings: user.total_winnings || 0,
+            total_bets: user.total_bets || 0,
+            win_rate: user.win_rate || 0,
+            tickets_balance: user.tickets_balance || 0
+          })
+          setLoadingData(false)
+          return
+        }
 
         // Fetch user profile data
         const { data: profile, error: profileError } = await supabase
@@ -52,74 +70,110 @@ export default function ProfilePage() {
 
         if (profile && !profileError) {
           setProfileData(profile)
+        } else {
+          // Fallback to user data from auth provider
+          setProfileData({
+            created_at: new Date().toISOString(), // Fallback date
+            total_winnings: user.total_winnings || 0,
+            total_bets: user.total_bets || 0,
+            win_rate: user.win_rate || 0,
+            tickets_balance: user.tickets_balance || 0
+          })
         }
 
-        // Fetch recent betting activity
-        const response = await fetch('/api/user-bets', {
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`
+        // Fetch recent betting activity with timeout
+        const controller = new AbortController()
+        const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
+        try {
+          const response = await fetch('/api/user-bets', {
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`
+            },
+            signal: controller.signal
+          })
+
+          clearTimeout(timeoutId)
+
+          if (response.ok) {
+            const data = await response.json()
+            const activity: RecentActivity[] = []
+
+            // Add account creation
+            if (profile?.created_at) {
+              activity.push({
+                id: 'account_created',
+                type: 'account_created',
+                description: 'Account created',
+                created_at: profile.created_at
+              })
+            }
+
+            // Add recent bets (last 5)
+            if (data.bets && data.bets.length > 0) {
+              const recentBets = data.bets.slice(0, 5)
+              recentBets.forEach((bet: any) => {
+                const matchInfo = bet.matches ? 
+                  `${bet.matches.champion_white} vs ${bet.matches.champion_black}` : 
+                  'AI Match'
+                
+                if (bet.status === 'won') {
+                  activity.push({
+                    id: bet.id,
+                    type: 'bet_won',
+                    description: `Won bet on ${matchInfo}`,
+                    amount: bet.payout_amount || bet.amount,
+                    created_at: bet.created_at,
+                    status: bet.status
+                  })
+                } else if (bet.status === 'lost') {
+                  activity.push({
+                    id: bet.id,
+                    type: 'bet_lost',
+                    description: `Lost bet on ${matchInfo}`,
+                    amount: bet.amount,
+                    created_at: bet.created_at,
+                    status: bet.status
+                  })
+                } else {
+                  activity.push({
+                    id: bet.id,
+                    type: 'bet_placed',
+                    description: `Placed bet on ${matchInfo}`,
+                    amount: bet.amount,
+                    created_at: bet.created_at,
+                    status: bet.status
+                  })
+                }
+              })
+            }
+
+            // Sort by date (newest first)
+            activity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            setRecentActivity(activity.slice(0, 5)) // Show only 5 most recent
+          } else {
+            console.log('Failed to fetch betting data, using fallback')
+            setRecentActivity([])
           }
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          const activity: RecentActivity[] = []
-
-          // Add account creation
-          if (profile?.created_at) {
-            activity.push({
-              id: 'account_created',
-              type: 'account_created',
-              description: 'Account created',
-              created_at: profile.created_at
-            })
+        } catch (fetchError) {
+          if (fetchError.name === 'AbortError') {
+            console.log('Betting data fetch timed out')
+          } else {
+            console.error('Error fetching betting data:', fetchError)
           }
-
-          // Add recent bets (last 5)
-          if (data.bets && data.bets.length > 0) {
-            const recentBets = data.bets.slice(0, 5)
-            recentBets.forEach((bet: any) => {
-              const matchInfo = bet.matches ? 
-                `${bet.matches.champion_white} vs ${bet.matches.champion_black}` : 
-                'AI Match'
-              
-              if (bet.status === 'won') {
-                activity.push({
-                  id: bet.id,
-                  type: 'bet_won',
-                  description: `Won bet on ${matchInfo}`,
-                  amount: bet.payout_amount || bet.amount,
-                  created_at: bet.created_at,
-                  status: bet.status
-                })
-              } else if (bet.status === 'lost') {
-                activity.push({
-                  id: bet.id,
-                  type: 'bet_lost',
-                  description: `Lost bet on ${matchInfo}`,
-                  amount: bet.amount,
-                  created_at: bet.created_at,
-                  status: bet.status
-                })
-              } else {
-                activity.push({
-                  id: bet.id,
-                  type: 'bet_placed',
-                  description: `Placed bet on ${matchInfo}`,
-                  amount: bet.amount,
-                  created_at: bet.created_at,
-                  status: bet.status
-                })
-              }
-            })
-          }
-
-          // Sort by date (newest first)
-          activity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-          setRecentActivity(activity.slice(0, 5)) // Show only 5 most recent
+          setRecentActivity([])
         }
       } catch (error) {
         console.error('Error fetching profile data:', error)
+        // Set fallback data
+        setProfileData({
+          created_at: new Date().toISOString(),
+          total_winnings: user.total_winnings || 0,
+          total_bets: user.total_bets || 0,
+          win_rate: user.win_rate || 0,
+          tickets_balance: user.tickets_balance || 0
+        })
+        setRecentActivity([])
       } finally {
         setLoadingData(false)
       }
@@ -128,23 +182,40 @@ export default function ProfilePage() {
     fetchProfileData()
   }, [user])
 
-  if (loading || partnerLoading) {
+  // Show loading state
+  if (loading || partnerLoading || loadingData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center min-h-[400px]">
-          <div className="text-white text-lg">Loading profile...</div>
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-purple-400 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <div className="text-white text-lg">Loading profile...</div>
+          </div>
         </div>
       </div>
     )
   }
 
+  // If no user and not loading, useRequireAuth will handle redirect
   if (!user) {
-    return null // This shouldn't happen due to useRequireAuth redirect
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-white text-lg">Redirecting to login...</div>
+        </div>
+      </div>
+    )
   }
 
   // Don't render if partner (will be redirected)
   if (isPartner) {
-    return null
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-white text-lg">Redirecting to partner dashboard...</div>
+        </div>
+      </div>
+    )
   }
 
   // Calculate member days using real creation date

@@ -37,30 +37,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
+    let isInitialLoad = true
+    
     // Get initial user
     getCurrentUser().then(({ user: currentUser, error: fetchError }) => {
-      if (fetchError) {
-        console.error('Initial user fetch error:', fetchError)
-        setError(fetchError)
-      } else {
-        setUser(currentUser)
+      if (isInitialLoad) {
+        if (fetchError) {
+          console.error('Initial user fetch error:', fetchError)
+          setError(fetchError)
+          setUser(null)
+        } else {
+          setUser(currentUser)
+          setError(null)
+        }
+        setLoading(false)
       }
-      setLoading(false)
     }).catch(error => {
-      console.error('Unexpected error during initial user fetch:', error)
-      setError('Failed to load user data')
-      setLoading(false)
+      if (isInitialLoad) {
+        console.error('Unexpected error during initial user fetch:', error)
+        setError('Failed to load user data')
+        setUser(null)
+        setLoading(false)
+      }
     })
 
     // Listen for auth state changes
     const { data: { subscription } } = onAuthStateChange((user) => {
       console.log('Auth provider received user update:', user?.id)
       setUser(user)
-      setLoading(false)
+      if (!isInitialLoad) {
+        setLoading(false)
+      }
       setError(null)
     })
 
     return () => {
+      isInitialLoad = false
       subscription.unsubscribe()
     }
   }, [])
@@ -92,18 +104,20 @@ export function useRequireAuth(redirectTo = '/login') {
   const { user, loading, error } = useAuth()
   
   useEffect(() => {
-    if (!loading && !user && !error) {
-      window.location.href = redirectTo
+    // Only redirect if we're definitely not loading and have no user
+    if (!loading && !user) {
+      console.log('useRequireAuth: No user found, redirecting to:', redirectTo)
+      
+      // If there's a profile error, redirect to recovery instead
+      if (error && error.includes('profile')) {
+        console.log('Profile error detected, redirecting to recovery')
+        window.location.href = '/recover-profile'
+      } else if (!error) {
+        // Only redirect to login if there's no error (clean logout)
+        window.location.href = redirectTo
+      }
     }
   }, [user, loading, error, redirectTo])
-
-  // If there's an auth error (like missing profile), redirect to recovery
-  useEffect(() => {
-    if (!loading && error && error.includes('profile')) {
-      console.log('Profile error detected, redirecting to recovery')
-      window.location.href = '/recover-profile'
-    }
-  }, [loading, error])
 
   return { user, loading, error }
 } 
