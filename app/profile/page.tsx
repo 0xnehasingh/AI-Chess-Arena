@@ -3,12 +3,130 @@
 import { User, Trophy, Star, Calendar, Edit3, Mail, Shield, DollarSign, Globe, MessageCircle, Upload, FileText, Award } from 'lucide-react'
 import { useRequireAuth } from '../../components/providers/AuthProvider'
 import { usePartnerRedirect } from '../../hooks/usePartnerRedirect'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+interface RecentActivity {
+  id: string
+  type: 'bet_placed' | 'bet_won' | 'bet_lost' | 'account_created'
+  description: string
+  amount?: number
+  created_at: string
+  status?: string
+  match_info?: string
+}
+
+interface ProfileData {
+  created_at: string
+  total_winnings: number
+  total_bets: number
+  win_rate: number
+  tickets_balance: number
+}
 
 export default function ProfilePage() {
   const { user, loading } = useRequireAuth()
   const { isPartner, loading: partnerLoading } = usePartnerRedirect()
   const [activeTab, setActiveTab] = useState('overview')
+  const [profileData, setProfileData] = useState<ProfileData | null>(null)
+  const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([])
+  const [loadingData, setLoadingData] = useState(true)
+
+  // Fetch dynamic profile data
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      if (!user) return
+
+      try {
+        // Get session for API calls
+        const { supabase } = await import('../../lib/supabase')
+        const { data: { session } } = await supabase.auth.getSession()
+        
+        if (!session?.access_token) return
+
+        // Fetch user profile data
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('created_at, total_winnings, total_bets, win_rate, tickets_balance')
+          .eq('id', user.id)
+          .single()
+
+        if (profile && !profileError) {
+          setProfileData(profile)
+        }
+
+        // Fetch recent betting activity
+        const response = await fetch('/api/user-bets', {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          const activity: RecentActivity[] = []
+
+          // Add account creation
+          if (profile?.created_at) {
+            activity.push({
+              id: 'account_created',
+              type: 'account_created',
+              description: 'Account created',
+              created_at: profile.created_at
+            })
+          }
+
+          // Add recent bets (last 5)
+          if (data.bets && data.bets.length > 0) {
+            const recentBets = data.bets.slice(0, 5)
+            recentBets.forEach((bet: any) => {
+              const matchInfo = bet.matches ? 
+                `${bet.matches.champion_white} vs ${bet.matches.champion_black}` : 
+                'AI Match'
+              
+              if (bet.status === 'won') {
+                activity.push({
+                  id: bet.id,
+                  type: 'bet_won',
+                  description: `Won bet on ${matchInfo}`,
+                  amount: bet.payout_amount || bet.amount,
+                  created_at: bet.created_at,
+                  status: bet.status
+                })
+              } else if (bet.status === 'lost') {
+                activity.push({
+                  id: bet.id,
+                  type: 'bet_lost',
+                  description: `Lost bet on ${matchInfo}`,
+                  amount: bet.amount,
+                  created_at: bet.created_at,
+                  status: bet.status
+                })
+              } else {
+                activity.push({
+                  id: bet.id,
+                  type: 'bet_placed',
+                  description: `Placed bet on ${matchInfo}`,
+                  amount: bet.amount,
+                  created_at: bet.created_at,
+                  status: bet.status
+                })
+              }
+            })
+          }
+
+          // Sort by date (newest first)
+          activity.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          setRecentActivity(activity.slice(0, 5)) // Show only 5 most recent
+        }
+      } catch (error) {
+        console.error('Error fetching profile data:', error)
+      } finally {
+        setLoadingData(false)
+      }
+    }
+
+    fetchProfileData()
+  }, [user])
 
   if (loading || partnerLoading) {
     return (
@@ -29,9 +147,15 @@ export default function ProfilePage() {
     return null
   }
 
-  // Calculate member days (assuming account creation date)
-  const memberSince = new Date('2024-01-15') // This would come from user.created_at when available
-  const memberDays = Math.floor((new Date().getTime() - memberSince.getTime()) / (1000 * 60 * 60 * 24))
+  // Calculate member days using real creation date
+  const calculateMemberDays = () => {
+    if (!profileData?.created_at) return 0
+    const createdDate = new Date(profileData.created_at)
+    const now = new Date()
+    return Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24))
+  }
+
+  const memberDays = calculateMemberDays()
 
   // Generate initials for avatar
   const getInitials = () => {
@@ -57,6 +181,35 @@ export default function ProfilePage() {
   }
 
   const levelInfo = calculateLevel()
+
+  // Format time ago
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    
+    if (diffInSeconds < 60) return 'Just now'
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} days ago`
+    return `${Math.floor(diffInSeconds / 2592000)} months ago`
+  }
+
+  // Get activity icon and color
+  const getActivityIcon = (type: string, status?: string) => {
+    switch (type) {
+      case 'bet_won':
+        return { icon: Trophy, color: 'bg-green-500', textColor: 'text-green-400' }
+      case 'bet_lost':
+        return { icon: Trophy, color: 'bg-red-500', textColor: 'text-red-400' }
+      case 'bet_placed':
+        return { icon: Star, color: 'bg-blue-500', textColor: 'text-blue-400' }
+      case 'account_created':
+        return { icon: User, color: 'bg-purple-500', textColor: 'text-purple-400' }
+      default:
+        return { icon: Star, color: 'bg-gray-500', textColor: 'text-gray-400' }
+    }
+  }
 
   // Partner Profile Component
   const PartnerProfile = () => (
@@ -276,12 +429,14 @@ export default function ProfilePage() {
             {/* Stats */}
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-cyan-400 mb-1">{user.total_bets || 0}</div>
+                <div className="text-3xl font-bold text-cyan-400 mb-1">
+                  {loadingData ? '...' : profileData?.total_bets || 0}
+                </div>
                 <div className="text-purple-300 text-sm">Total Bets</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-yellow-400 mb-1">
-                  {user.tickets_balance || 0} 🎫
+                  {loadingData ? '...' : `${profileData?.tickets_balance || 0} 🎫`}
                 </div>
                 <div className="text-purple-300 text-sm">Tickets</div>
               </div>
@@ -291,7 +446,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-2 gap-4 mb-6">
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-400 mb-1">
-                  {user.total_tickets_earned || 0}
+                  {loadingData ? '...' : user.total_tickets_earned || 0}
                 </div>
                 <div className="text-purple-300 text-sm">Earned</div>
               </div>
@@ -393,7 +548,7 @@ export default function ProfilePage() {
                       <div className="text-center">
                         <Trophy className="text-yellow-400 mx-auto mb-3" size={32} />
                         <div className="text-3xl font-bold text-white mb-2">
-                          {user.win_rate ? `${(user.win_rate * 100).toFixed(1)}%` : '0%'}
+                          {loadingData ? '...' : profileData?.win_rate ? `${(profileData.win_rate * 100).toFixed(1)}%` : '0%'}
                         </div>
                         <div className="text-purple-200">Win Rate</div>
                       </div>
@@ -404,7 +559,7 @@ export default function ProfilePage() {
                       <div className="text-center">
                         <DollarSign className="text-green-400 mx-auto mb-3" size={32} />
                         <div className="text-xl font-bold text-white mb-2">
-                          {user.total_winnings || 0} tickets
+                          {loadingData ? '...' : `${profileData?.total_winnings || 0} tickets`}
                         </div>
                         <div className="text-purple-200">Total Winnings</div>
                       </div>
@@ -414,7 +569,9 @@ export default function ProfilePage() {
                     <div className="bg-purple-600/30 backdrop-blur-md rounded-2xl p-6 border border-purple-500/30">
                       <div className="text-center">
                         <Calendar className="text-blue-400 mx-auto mb-3" size={32} />
-                        <div className="text-xl font-bold text-white mb-2">{memberDays}</div>
+                        <div className="text-xl font-bold text-white mb-2">
+                          {loadingData ? '...' : memberDays}
+                        </div>
                         <div className="text-purple-200">Days as Member</div>
                       </div>
                     </div>
@@ -424,44 +581,33 @@ export default function ProfilePage() {
                   <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
                     <h3 className="text-xl font-bold text-white mb-4">Recent Activity</h3>
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between py-3 border-b border-white/10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                            <Trophy size={20} className="text-white" />
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">Won bet on ChatGPT vs Claude</p>
-                            <p className="text-purple-300 text-sm">2 days ago</p>
-                          </div>
-                        </div>
-                        <span className="text-green-400 font-bold">+$45.50</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-3 border-b border-white/10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                            <Star size={20} className="text-white" />
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">Placed bet on Moonbeam Tournament</p>
-                            <p className="text-purple-300 text-sm">5 days ago</p>
-                          </div>
-                        </div>
-                        <span className="text-blue-400 font-bold">$25.00</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-                            <User size={20} className="text-white" />
-                          </div>
-                          <div>
-                            <p className="text-white font-medium">Account created</p>
-                            <p className="text-purple-300 text-sm">{memberDays} days ago</p>
-                          </div>
-                        </div>
-                        <span className="text-purple-400 font-bold">Welcome!</span>
-                      </div>
+                      {loadingData ? (
+                        <div className="text-center text-purple-300">Loading activity...</div>
+                      ) : recentActivity.length === 0 ? (
+                        <div className="text-center text-purple-300">No recent activity found.</div>
+                      ) : (
+                        recentActivity.map((activity) => {
+                          const { icon: ActivityIcon, color, textColor } = getActivityIcon(activity.type, activity.status)
+                          return (
+                            <div key={activity.id} className="flex items-center justify-between py-3 border-b border-white/10">
+                              <div className="flex items-center gap-3">
+                                                                 <div className={`w-10 h-10 rounded-full flex items-center justify-center ${color}`}>
+                                   <ActivityIcon size={20} className="text-white" />
+                                </div>
+                                <div>
+                                  <p className="text-white font-medium">{activity.description}</p>
+                                  <p className="text-purple-300 text-sm">{formatTimeAgo(activity.created_at)}</p>
+                                </div>
+                              </div>
+                                                             {activity.amount !== undefined && (
+                                 <span className={`${textColor} font-bold`}>
+                                   {activity.type === 'bet_won' ? '+' : activity.type === 'bet_lost' ? '-' : ''}{activity.amount} tickets
+                                 </span>
+                               )}
+                            </div>
+                          )
+                        })
+                      )}
                     </div>
                   </div>
                 </>
@@ -496,25 +642,29 @@ export default function ProfilePage() {
                     <h3 className="text-xl font-bold text-white mb-6">Betting Statistics</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-cyan-400 mb-1">{user.total_bets || 0}</div>
+                        <div className="text-2xl font-bold text-cyan-400 mb-1">
+                          {loadingData ? '...' : profileData?.total_bets || 0}
+                        </div>
                         <div className="text-purple-300 text-sm">Total Bets</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-400 mb-1">
-                          {user.win_rate ? Math.round((user.win_rate * (user.total_bets || 0))) : 0}
+                          {loadingData ? '...' : profileData?.win_rate && profileData?.total_bets ? Math.round((profileData.win_rate * profileData.total_bets)) : 0}
                         </div>
                         <div className="text-purple-300 text-sm">Wins</div>
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-red-400 mb-1">
-                          {user.total_bets ? (user.total_bets - Math.round((user.win_rate || 0) * user.total_bets)) : 0}
+                          {loadingData ? '...' : profileData?.total_bets && profileData?.win_rate ? (profileData.total_bets - Math.round(profileData.win_rate * profileData.total_bets)) : 0}
                         </div>
                         <div className="text-purple-300 text-sm">Losses</div>
                       </div>
-                      <div className="text-2xl font-bold text-yellow-400 mb-1">
-                        {user.win_rate ? `${(user.win_rate * 100).toFixed(1)}%` : '0%'}
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-yellow-400 mb-1">
+                          {loadingData ? '...' : profileData?.win_rate ? `${(profileData.win_rate * 100).toFixed(1)}%` : '0%'}
+                        </div>
+                        <div className="text-purple-300 text-sm">Win Rate</div>
                       </div>
-                      <div className="text-purple-300 text-sm">Win Rate</div>
                     </div>
                   </div>
                 </div>

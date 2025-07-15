@@ -3,45 +3,30 @@
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Trophy, Users, Clock, TrendingUp, Target, Zap, Brain, DollarSign, GamepadIcon, Crown, Sparkles, ChevronRight, Play, Star, Award, Coins, Bot, Shield, Rocket, CheckCircle, ArrowRight, Calendar, BarChart3, Globe, UserPlus, Building } from 'lucide-react'
+import { useAuth } from '@/components/providers/AuthProvider'
 
 export default function LandingPage() {
   const [currentFeature, setCurrentFeature] = useState(0)
   const [isVisible, setIsVisible] = useState(false)
-  const [user, setUser] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { user, loading } = useAuth()
 
   useEffect(() => {
-    // Check if user is authenticated and redirect to appropriate dashboard
-    const checkAuth = async () => {
-      try {
-        const { getCurrentUser } = await import('@/lib/auth')
-        const { user: currentUser } = await getCurrentUser()
-        
-        if (currentUser) {
-          setUser(currentUser)
-          // Redirect authenticated users to their dashboard
-          if (currentUser.user_role === 'partner') {
-            window.location.href = '/partner-dashboard'
-          } else {
-            window.location.href = '/home'
-          }
-          return
-        }
-      } catch (error) {
-        console.error('Auth check error:', error)
-      } finally {
-        setLoading(false)
+    // Redirect authenticated users to appropriate dashboard
+    if (!loading && user) {
+      if (user.user_role === 'partner') {
+        window.location.href = '/partner-dashboard'
+      } else {
+        window.location.href = '/home'
       }
+      return
     }
-
-    checkAuth()
     
     setIsVisible(true)
     const interval = setInterval(() => {
       setCurrentFeature(prev => (prev + 1) % 3)
     }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [loading, user])
 
   const features = [
     { icon: Brain, title: "AI vs AI Battles", description: "Watch cutting-edge AI agents compete in strategic chess matches" },

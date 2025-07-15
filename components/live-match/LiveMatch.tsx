@@ -27,7 +27,7 @@ export interface ChessMove {
 }
 
 interface GameState {
-  status: 'playing' | 'checkmate' | 'stalemate' | 'draw' | 'waiting'
+  status: 'waiting' | 'playing' | 'checkmate' | 'stalemate' | 'draw'
   winner?: 'ChatGPT' | 'Claude' | 'draw'
   reason?: string
 }
@@ -38,7 +38,7 @@ export function LiveMatch() {
   const [moves, setMoves] = useState<ChessMove[]>([])
   const [currentPlayer, setCurrentPlayer] = useState<'ChatGPT' | 'Claude'>('Claude')
   const [lastMove, setLastMove] = useState<ChessMove | null>(null)
-  const [gameState, setGameState] = useState<GameState>({ status: 'playing' })
+  const [gameState, setGameState] = useState<GameState>({ status: 'waiting' })
   const [boardPosition, setBoardPosition] = useState(chess.board())
   const [isThinking, setIsThinking] = useState(false)
   const [matchId, setMatchId] = useState<number | null>(null)
@@ -170,50 +170,51 @@ export function LiveMatch() {
     return false
   }, [chess])
 
-  // Create match on blockchain when component mounts
-  useEffect(() => {
-    const initializeMatch = async () => {
+  // Function to start the match when first bet is placed
+  const startMatch = useCallback(async () => {
+    if (gameState.status !== 'waiting') return
+    
+    try {
+      console.log('🚀 Starting match due to first bet...')
+      const newMatchId = await createMatchOnBlockchain()
+      setMatchId(newMatchId)
+      setGameState({ status: 'playing' })
+      console.log('✅ Match started with ID:', newMatchId)
+    } catch (error) {
+      console.error('❌ Failed to start match on blockchain:', error)
+      console.log('🔄 Trying to create match via API as fallback...')
+      
+      // Try to create match via direct API call as fallback
       try {
-        console.log('🚀 Attempting to create match on blockchain...')
-        const newMatchId = await createMatchOnBlockchain()
-        setMatchId(newMatchId)
-        console.log('✅ Match initialized with ID:', newMatchId)
-      } catch (error) {
-        console.error('❌ Failed to initialize match on blockchain:', error)
-        console.log('🔄 Trying to create match via API as fallback...')
-        
-        // Try to create match via direct API call as fallback
-        try {
-          const apiResponse = await fetch('/api/create-match', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              whitePlayer: 'Claude',
-              blackPlayer: 'ChatGPT',
-              initialFen: chess.fen()
-            })
+        const apiResponse = await fetch('/api/create-match', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            whitePlayer: 'Claude',
+            blackPlayer: 'ChatGPT',
+            initialFen: chess.fen()
           })
-          
-          if (apiResponse.ok) {
-            const apiResult = await apiResponse.json()
-            if (apiResult.success && apiResult.matchId) {
-              setMatchId(parseInt(apiResult.matchId))
-              console.log('✅ Fallback match created via API with ID:', apiResult.matchId)
-              return
-            }
-          }
-        } catch (apiError) {
-          console.error('❌ API fallback also failed:', apiError)
-        }
+        })
         
-        // If both methods fail, disable blockchain recording
-        setMatchId(null)
-        console.log('❌ Both blockchain methods failed, playing without blockchain recording')
+        if (apiResponse.ok) {
+          const apiResult = await apiResponse.json()
+          if (apiResult.success && apiResult.matchId) {
+            setMatchId(parseInt(apiResult.matchId))
+            setGameState({ status: 'playing' })
+            console.log('✅ Fallback match started via API with ID:', apiResult.matchId)
+            return
+          }
+        }
+      } catch (apiError) {
+        console.error('❌ API fallback also failed:', apiError)
       }
+      
+      // If both methods fail, still start the game but without blockchain recording
+      setMatchId(null)
+      setGameState({ status: 'playing' })
+      console.log('⚠️ Both blockchain methods failed, starting game without blockchain recording')
     }
-
-    initializeMatch()
-  }, [createMatchOnBlockchain])
+  }, [gameState.status, createMatchOnBlockchain, chess])
 
   // Generate AI move (simplified AI logic)
   const generateAIMove = useCallback(() => {
@@ -466,25 +467,18 @@ export function LiveMatch() {
     setMoves([])
     setLastMove(null)
     setCurrentPlayer('Claude')
-    setGameState({ status: 'playing' })
+    setGameState({ status: 'waiting' })
     setBoardPosition(chess.board())
     setIsThinking(false)
     setMatchId(null)
-    
-    // Create a new match when resetting
-    createMatchOnBlockchain()
-      .then(newMatchId => {
-        setMatchId(newMatchId)
-        console.log('✅ New match created for reset with ID:', newMatchId)
-      })
-      .catch(error => {
-        console.error('❌ Failed to create new match after reset:', error)
-        setMatchId(1) // Fallback
-      })
-  }, [chess, createMatchOnBlockchain])
+  }, [chess])
 
   // Get game status message
   const getGameStatusMessage = () => {
+    if (gameState.status === 'waiting') {
+      return 'Waiting for bets to start the match...'
+    }
+    
     if (gameState.status === 'playing') {
       if (isThinking) {
         return `${currentPlayer} is thinking...`
@@ -720,6 +714,8 @@ export function LiveMatch() {
               <BettingPanel 
                 isGameActive={gameState.status === 'playing'}
                 currentPlayer={currentPlayer}
+                gameStatus={gameState.status}
+                onStartMatch={startMatch}
               />
             </motion.div>
             

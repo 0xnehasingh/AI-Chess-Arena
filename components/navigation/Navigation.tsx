@@ -71,10 +71,10 @@ export function Navigation() {
         toast.error(error)
       } else {
         toast.success('Signed out successfully')
-        // Force a small delay to ensure auth state is cleared
+        // Force a complete page reload to clear all state
         setTimeout(() => {
-          window.location.href = '/'
-        }, 100)
+          window.location.replace('/')
+        }, 500)
       }
     } catch (err) {
       toast.dismiss()

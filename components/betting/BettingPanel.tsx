@@ -8,9 +8,11 @@ import { useTournament } from '../providers/TournamentProvider'
 interface BettingPanelProps {
   isGameActive?: boolean
   currentPlayer?: 'ChatGPT' | 'Claude'
+  gameStatus?: 'waiting' | 'playing' | 'checkmate' | 'stalemate' | 'draw'
+  onStartMatch?: () => Promise<void>
 }
 
-export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPanelProps) {
+export function BettingPanel({ isGameActive = true, currentPlayer, gameStatus = 'playing', onStartMatch }: BettingPanelProps) {
   const [selectedAmount, setSelectedAmount] = useState(2)
   const [selectedAgent, setSelectedAgent] = useState<'ChatGPT' | 'Claude' | null>(null)
   const [timeLeft, setTimeLeft] = useState({ minutes: 0, seconds: 0 })
@@ -180,6 +182,19 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
 
         if (response.ok) {
           console.log('Bet placed successfully:', result)
+          
+          // Start the match if it's waiting for bets
+          if (gameStatus === 'waiting' && onStartMatch) {
+            console.log('🚀 Starting match due to first bet placement...')
+            try {
+              await onStartMatch()
+              console.log('✅ Match started successfully')
+            } catch (error) {
+              console.error('❌ Failed to start match:', error)
+              // Don't show error to user since bet was successful
+            }
+          }
+          
           // Refresh user data to get updated ticket balance
           await refreshUser()
           setBetError('')
@@ -255,12 +270,26 @@ export function BettingPanel({ isGameActive = true, currentPlayer }: BettingPane
         </div>
       )}
 
-      {/* Countdown Timer */}
+      {/* Game Status / Countdown Timer */}
       <div className="text-center mb-8">
-        <p className="text-purple-200 mb-3">Ticket Lock Closes In:</p>
-        <div className="text-6xl font-bold text-yellow-400 tracking-wider">
-          {formatTime(timeLeft)}
-        </div>
+        {gameStatus === 'waiting' ? (
+          <>
+            <p className="text-purple-200 mb-3">🎯 Waiting for First Bet</p>
+            <div className="text-2xl font-bold text-green-400 tracking-wider mb-2">
+              Place a bet to start the match!
+            </div>
+            <p className="text-purple-300 text-sm">
+              The AI battle will begin as soon as someone places the first bet
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-purple-200 mb-3">Ticket Lock Closes In:</p>
+            <div className="text-6xl font-bold text-yellow-400 tracking-wider">
+              {formatTime(timeLeft)}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Support Section */}
