@@ -155,14 +155,14 @@ export default function ProfilePage() {
             console.log('Failed to fetch betting data, using fallback')
             setRecentActivity([])
           }
-        } catch (fetchError) {
-          if (fetchError.name === 'AbortError') {
-            console.log('Betting data fetch timed out')
-          } else {
-            console.error('Error fetching betting data:', fetchError)
-          }
-          setRecentActivity([])
-        }
+                 } catch (fetchError) {
+           if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+             console.log('Betting data fetch timed out')
+           } else {
+             console.error('Error fetching betting data:', fetchError)
+           }
+           setRecentActivity([])
+         }
       } catch (error) {
         console.error('Error fetching profile data:', error)
         // Set fallback data
