@@ -88,7 +88,7 @@ npm install @supabase/supabase-js
 ### Tables Created
 
 1. **profiles** - User profiles and betting statistics
-2. **tournaments** - Chess tournaments (DeFi Core, Moonbeam, NodeOps)
+2. **tournaments** - Chess tournaments (DeFi Core, Moonbeam, Metis)
 3. **matches** - Individual chess matches between AI champions
 4. **bets** - User bets on match outcomes
 5. **match_moves** - Individual moves in chess games
@@ -98,7 +98,7 @@ npm install @supabase/supabase-js
 The setup includes sample tournaments:
 - AI Chess Championship 2024 (DeFi Core)
 - Moonbeam AI Tournament (Moonbeam Foundation)
-- NodeOps Challenge (NodeOps)
+- Metis Challenge (Metis)
 
 ## Security Features
 
