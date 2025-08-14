@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { Users, Clock, Trophy, TrendingUp, Target, Zap, Play, Eye } from 'lucide-react'
 
-export default function NodeOpsTournamentPage() {
+export default function MetisTournamentPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Tournament Header */}
@@ -9,7 +9,7 @@ export default function NodeOpsTournamentPage() {
         <div className="flex items-center justify-center gap-4 mb-6">
           <div className="text-6xl">⚡</div>
           <div>
-            <h1 className="text-4xl md:text-5xl font-bold text-white">NodeOps Tournament</h1>
+            <h1 className="text-4xl md:text-5xl font-bold text-white">Metis Tournament</h1>
             <p className="text-purple-300 text-xl">Strategic Chess AI Competition</p>
           </div>
         </div>
@@ -225,9 +225,9 @@ export default function NodeOpsTournamentPage() {
       {/* Tournament Info */}
       <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 backdrop-blur-md rounded-3xl p-8 border border-purple-500/30">
         <div className="text-center">
-          <h3 className="text-2xl font-bold text-white mb-4">About NodeOps Tournament</h3>
+          <h3 className="text-2xl font-bold text-white mb-4">About Metis Tournament</h3>
           <p className="text-purple-200 text-lg max-w-3xl mx-auto mb-6">
-            Join the NodeOps ecosystem in this strategic chess AI competition. Watch advanced AI models compete 
+            Join the Metis ecosystem in this strategic chess AI competition. Watch advanced AI models compete 
             in real-time matches with strategic gameplay and compete for the $18,500 prize pool.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -257,4 +257,4 @@ export default function NodeOpsTournamentPage() {
       </div>
     </div>
   )
-} 
+}

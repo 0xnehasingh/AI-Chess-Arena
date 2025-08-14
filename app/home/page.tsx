@@ -50,13 +50,13 @@ export default function TournamentHomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* NodeOps Tournament */}
+          {/* Metis Tournament */}
           <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 hover:border-purple-500/50 transition-all duration-200 btn-hover">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
                 <div className="text-3xl">⚡</div>
                 <div>
-                  <h3 className="text-xl font-bold text-white">NodeOps</h3>
+                  <h3 className="text-xl font-bold text-white">Metis</h3>
                   <p className="text-purple-300">$OPS Tournament</p>
                 </div>
               </div>
@@ -90,7 +90,7 @@ export default function TournamentHomePage() {
             </div>
 
               <button 
-                onClick={() => handleJoinTournament('nodeops')}
+                onClick={() => handleJoinTournament('metis')}
                 className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-4 rounded-lg transition-all duration-200 text-center flex items-center justify-center gap-2"
               >
                 <UserPlus className="w-4 h-4" />
