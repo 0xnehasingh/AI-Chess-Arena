@@ -220,17 +220,30 @@ export async function POST(request: NextRequest) {
   try {
     // Parse request body once and reuse it
     requestBody = await request.json()
-    const { provider, fen } = requestBody
+    const { provider, fen, champion } = requestBody
 
-    // Validate input
-    if (!provider || !fen) {
+    // Validate input - accept either provider or champion
+    if (!fen) {
       return NextResponse.json(
-        { error: 'Missing provider or fen parameter' },
+        { error: 'Missing fen parameter' },
+        { status: 400 }
+      )
+    }
+    
+    // Determine provider from champion if not specified
+    let actualProvider = provider
+    if (!actualProvider && champion) {
+      actualProvider = champion === 'ChatGPT' ? 'openai' : 'anthropic'
+    }
+    
+    if (!actualProvider) {
+      return NextResponse.json(
+        { error: 'Missing provider or champion parameter' },
         { status: 400 }
       )
     }
 
-    if (provider !== 'openai' && provider !== 'anthropic') {
+    if (actualProvider !== 'openai' && actualProvider !== 'anthropic') {
       return NextResponse.json(
         { error: 'Invalid provider. Must be "openai" or "anthropic"' },
         { status: 400 }
@@ -247,33 +260,66 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if API keys are available
-    if (provider === 'openai' && !process.env.OPENAI_API_KEY) {
-      return NextResponse.json(
-        { error: 'OpenAI API key not configured' },
-        { status: 500 }
-      )
-    }
+    // Always use Anthropic regardless of the requested provider
+    // This way both ChatGPT and Claude players use Claude AI
+    actualProvider = 'anthropic'
 
-    if (provider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json(
-        { error: 'Anthropic API key not configured' },
-        { status: 500 }
-      )
+    if (actualProvider === 'anthropic' && !process.env.ANTHROPIC_API_KEY) {
+      console.log('❌ Anthropic API key not configured')
+      // Fall back to random move
+      const chess = new Chess(fen)
+      const moves = chess.moves()
+      if (moves.length === 0) {
+        return NextResponse.json(
+          { error: 'Game is over - no legal moves' },
+          { status: 400 }
+        )
+      }
+      const randomMove = moves[Math.floor(Math.random() * moves.length)]
+      chess.move(randomMove)
+      console.log('🎲 Fallback: Random move selected:', randomMove)
+      return NextResponse.json({
+        success: true,
+        newFen: chess.fen(),
+        provider: 'random'
+      })
     }
 
     let newFen: string
 
-    if (provider === 'openai') {
-      newFen = await getOpenAIMove(fen)
-    } else {
+    try {
+      // Always use Anthropic (Claude) for both players
+      // But keep the display names as ChatGPT vs Claude in frontend
+      console.log(`🤖 ${champion || actualProvider} move using Claude AI...`)
       newFen = await getAnthropicMove(fen)
+    } catch (aiError) {
+      console.error('❌ AI provider failed:', aiError)
+      // Fallback to random move on AI error
+      const chess = new Chess(fen)
+      const moves = chess.moves()
+      if (moves.length === 0) {
+        return NextResponse.json(
+          { error: 'Game is over - no legal moves' },
+          { status: 400 }
+        )
+      }
+      const randomMove = moves[Math.floor(Math.random() * moves.length)]
+      chess.move(randomMove)
+      console.log('🎲 Fallback: Random move after AI error:', randomMove)
+      return NextResponse.json({
+        success: true,
+        newFen: chess.fen(),
+        provider: 'random',
+        fallbackReason: aiError instanceof Error ? aiError.message : 'AI error'
+      })
     }
 
     return NextResponse.json({
       success: true,
       newFen,
-      provider
+      provider: actualProvider,
+      displayPlayer: champion || (actualProvider === 'openai' ? 'ChatGPT' : 'Claude'),
+      actualEngine: 'Claude AI'
     })
 
   } catch (error) {

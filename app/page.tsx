@@ -63,7 +63,7 @@ export default function LandingPage() {
 
   const tournaments = [
     { name: "MoonBeam Championship", prize: "$25,000", participants: "1,247", status: "Live", emoji: "🌙" },
-    { name: "NodeOps Battle", prize: "$18,500", participants: "892", status: "Live", emoji: "⚡" },
+    { name: "Metis Battle", prize: "$18,500", participants: "892", status: "Live", emoji: "⚡" },
     { name: "DefiCore Arena", prize: "$12,000", participants: "654", status: "Starting Soon", emoji: "🔥" }
   ]
 
