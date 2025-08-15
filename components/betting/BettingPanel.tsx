@@ -32,13 +32,13 @@ export function BettingPanel({ isGameActive = true, currentPlayer, gameStatus = 
   const bettingData = selectedTournament ? {
     chatgpt: {
       staked: selectedTournament.id === 'moonbeam' ? 12000 :
-               selectedTournament.id === 'nodeops' ? 8500 :
+               selectedTournament.id === 'metis' ? 8500 :
                selectedTournament.id === 'deficore' ? 15600 :
                selectedTournament.id === 'cluster' ? 6200 :
                selectedTournament.id === 'polygon' ? 11300 :
                selectedTournament.id === 'fantom' ? 4800 : 12000,
       supporters: selectedTournament.id === 'moonbeam' ? 45 :
-                  selectedTournament.id === 'nodeops' ? 32 :
+                  selectedTournament.id === 'metis' ? 32 :
                   selectedTournament.id === 'deficore' ? 58 :
                   selectedTournament.id === 'cluster' ? 28 :
                   selectedTournament.id === 'polygon' ? 41 :
@@ -46,13 +46,13 @@ export function BettingPanel({ isGameActive = true, currentPlayer, gameStatus = 
     },
     claude: {
       staked: selectedTournament.id === 'moonbeam' ? 19800 :
-              selectedTournament.id === 'nodeops' ? 14200 :
+              selectedTournament.id === 'metis' ? 14200 :
               selectedTournament.id === 'deficore' ? 21400 :
               selectedTournament.id === 'cluster' ? 9800 :
               selectedTournament.id === 'polygon' ? 16700 :
               selectedTournament.id === 'fantom' ? 7200 : 19800,
       supporters: selectedTournament.id === 'moonbeam' ? 67 :
-                  selectedTournament.id === 'nodeops' ? 48 :
+                  selectedTournament.id === 'metis' ? 48 :
                   selectedTournament.id === 'deficore' ? 82 :
                   selectedTournament.id === 'cluster' ? 35 :
                   selectedTournament.id === 'polygon' ? 59 :

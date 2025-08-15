@@ -128,10 +128,10 @@ CREATE POLICY "Users can insert own bets" ON bets FOR INSERT WITH CHECK (auth.ui
 INSERT INTO tournaments (name, description, sponsor, start_date, end_date, prize_pool) VALUES
 ('AI Chess Championship 2024', 'The ultimate battle between AI chess champions', 'DeFi Core', '2024-01-15 10:00:00+00', '2024-01-20 18:00:00+00', 10000.00),
 ('Moonbeam AI Tournament', 'AI chess tournament on Moonbeam network', 'Moonbeam Foundation', '2024-02-01 12:00:00+00', '2024-02-05 20:00:00+00', 15000.00),
-('NodeOps Challenge', 'Professional AI chess challenge', 'NodeOps', '2024-02-15 14:00:00+00', '2024-02-18 16:00:00+00', 8000.00);
+('Metis Challenge', 'Professional AI chess challenge', 'Metis', '2024-02-15 14:00:00+00', '2024-02-18 16:00:00+00', 8000.00);
 
 -- Insert sample matches
 INSERT INTO matches (tournament_id, champion_white, champion_black, start_time, betting_closes_at) VALUES
 ((SELECT id FROM tournaments WHERE name = 'AI Chess Championship 2024'), 'ChatGPT', 'Claude', '2024-01-15 15:00:00+00', '2024-01-15 14:55:00+00'),
 ((SELECT id FROM tournaments WHERE name = 'Moonbeam AI Tournament'), 'Claude', 'ChatGPT', '2024-02-01 16:00:00+00', '2024-02-01 15:55:00+00'),
-((SELECT id FROM tournaments WHERE name = 'NodeOps Challenge'), 'ChatGPT', 'Claude', '2024-02-15 18:00:00+00', '2024-02-15 17:55:00+00'); 
+((SELECT id FROM tournaments WHERE name = 'Metis Challenge'), 'ChatGPT', 'Claude', '2024-02-15 18:00:00+00', '2024-02-15 17:55:00+00'); 

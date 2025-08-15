@@ -22,9 +22,9 @@ export interface Tournament {
 
 export const tournaments: Tournament[] = [
   {
-    id: 'nodeops',
-    name: 'NodeOps Tournament',
-    company: 'NodeOps',
+    id: 'metis',
+    name: 'Metis Tournament',
+    company: 'Metis',
     emoji: '⚡',
     prizePool: '$18,500',
     participants: '892',
